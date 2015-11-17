@@ -6,15 +6,15 @@ CS 3251 Computer Network I
 Programming Assignment 2
 Reliable Transfer Protocol (RxP)
 
-RxP Server
+RxP Socket
 """
 import socket
 
 class Socket:
 	""" socket()
 	Creates an endpoint for communication. 
-	This function wraps UDP’s socket creation and preceding preparations, 
-	which include getting address information, and running UDP’s socket function.
+	This function wraps UDP's socket creation and preceding preparations,
+	which include getting address information, and running UDP's socket function.
 	[e.g. socket(AF_UNSPEC, SOCK_DGRAM, IPPROTO_UDP)]
 	"""
 
@@ -32,7 +32,6 @@ class Socket:
 		""" bind(socket_descripter, socket_address, address_length)
 		Assigns the address given as socket_address to the socket referred to by the socket_descriptor.
 		address_length indicates size of socket_address structure.
-		Return: 0 on success, -1 on error.
 		"""
 		self.srcAddr = address
 
@@ -41,7 +40,6 @@ class Socket:
 		If connect() is used for client, accept() is used for client. 
 		Since both client and server require TCB, 
 			accept() also creates corresponding TCB just like connect().
-		Return: 0 if accepting incoming connection succeeds, -1 for error.
 		"""
 		if self.srcAddr is None:
 			raise Error("Socket is not bound.")
@@ -50,23 +48,22 @@ class Socket:
 
 	""" listen(socket_descripter, number_of_max_pending_connections)
 	This function makes server socket to wait and listen to incoming connection request.
-	Return: 0 on success, -1 for error.
 	"""
 
 """ send(socket_descripter, buffer_to_send, length_of_buffer)
 Write data to stream. 
 This function should work only when connection is establised. 
 	Otherwise, error is returned.
-Since this make use of UDP’s sendto() function, 
-	this function automatically takes care of destination address 
+Since this make use of UDP's sendto() function,
+	this function automatically takes care of destination address
 	under connection-established environment.
 Return: return the number of characters sent. -1 is returned on error.
 """
 
 """ recv(socket_descripter, buffer_to_store_data, length_to_receive)
 Read data from stream and store it to buffer.
-Since this make use of UDP’s recvfrom() function, 
-	this function automatically takes care of source address 
+Since this make use of UDP's recvfrom() function,
+	this function automatically takes care of source address
 	under connection-established environment.
 Return: number of bytes received, -1 on error
 """
@@ -76,8 +73,8 @@ Converts IPv4 or IPv6 address from text(address_string) to
 	binary format(into socket_address_field)
 Flag is integer flag that indicates whether given source address string 
 	is in format of IPv4 or IPv6.
-Return 1 on success, 
-	0 when source_address_string’s format doesn’t match with given flag. 
+Return 1 on success,
+	0 when source_address_string's format doesn't match with given flag.
 	-1 on error.
 """
 
