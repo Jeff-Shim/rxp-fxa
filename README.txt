@@ -8,7 +8,7 @@ Programming Assignment 2
 Due Nov. 25, 2015
 
 Files Submitted (Names & Description)
-- rxp/rxp-server.py	: Contains all logic for running RxP Server
+- rxp/rxp-server.py : Contains all logic for running RxP Server
 - rxp/rxp-client.py : Contains all logic for running RxP Client
 
 Instructions for Compiling & Running Application

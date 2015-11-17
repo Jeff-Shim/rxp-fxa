@@ -8,14 +8,50 @@ Reliable Transfer Protocol (RxP)
 
 RxP Server
 """
+import socket
 
-""" socket()
-Creates an endpoint for communication. 
-This function wraps UDP’s socket creation and preceding preparations, 
-which include getting address information, and running UDP’s socket function.
-[e.g. socket(AF_UNSPEC, SOCK_DGRAM, IPPROTO_UDP)]
-Return: socket descriptor
-"""
+class Socket:
+	""" socket()
+	Creates an endpoint for communication. 
+	This function wraps UDP’s socket creation and preceding preparations, 
+	which include getting address information, and running UDP’s socket function.
+	[e.g. socket(AF_UNSPEC, SOCK_DGRAM, IPPROTO_UDP)]
+	"""
+
+	def __init__(self):
+
+		# "Your RxP packets will need to be encapsulated in UDP packets."
+		self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+		self.timeout = self._socket.settimeout(30)	# 30 seconds.
+		self.status = ConnectionStatus.NONE	# init to no connection
+		self.srcAddr = None
+		self.destAddr = None
+
+	def bind(self, address):
+		""" bind(socket_descripter, socket_address, address_length)
+		Assigns the address given as socket_address to the socket referred to by the socket_descriptor.
+		address_length indicates size of socket_address structure.
+		Return: 0 on success, -1 on error.
+		"""
+		self.srcAddr = address
+
+	def accept(self):
+		""" accept(socket, socket_address, address_length)
+		If connect() is used for client, accept() is used for client. 
+		Since both client and server require TCB, 
+			accept() also creates corresponding TCB just like connect().
+		Return: 0 if accepting incoming connection succeeds, -1 for error.
+		"""
+		if self.srcAddr is None:
+			raise Error("Socket is not bound.")
+		if self.destAddr is None:
+			raise Error("No Connection.")
+
+	""" listen(socket_descripter, number_of_max_pending_connections)
+	This function makes server socket to wait and listen to incoming connection request.
+	Return: 0 on success, -1 for error.
+	"""
 
 """ send(socket_descripter, buffer_to_send, length_of_buffer)
 Write data to stream. 
@@ -52,20 +88,17 @@ Flag is integer flat that indicates whether given network_address is IPv4 or IPv
 Return pointer to destination_string, NULL on error.
 """
 
-""" bind(socket_descripter, socket_address, address_length)
-Assigns the address given as socket_address to the socket referred to by the socket_descriptor.
-address_length indicates size of socket_address structure.
-Return: 0 on success, -1 on error.
-"""
+class ConnectionStatus:
+	""" Enum to describe the status of socket connection """
+	NONE = "none"
 
-""" listen(socket_descripter, number_of_max_pending_connections)
-This function makes server socket to wait and listen to incoming connection request.
-Return: 0 on success, -1 for error.
-"""
-
-""" accept(socket, socket_address, address_length)
-If connect() is used for client, accept() is used for client. 
-Since both client and server require TCB, 
-	accept() also creates corresponding TCB just like connect().
-Return: 0 if accepting incoming connection succeeds, -1 for error.
-"""
+class Error(Exception):
+	""" Throws specified exception """
+	defaultMessage = "Oops, something went wrong!"
+	def __init__(self, errorMessage=None):
+		if errorMessage is None:
+			self.message = defaultMessage
+		else:
+			self.message = errorMessage
+	def __str__(self):
+		return repr(self.message)
