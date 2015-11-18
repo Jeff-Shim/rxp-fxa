@@ -12,6 +12,11 @@ import ctypes
 from collections import OrderedDict
 
 class Header:
+	"""
+	Header class handles creating RxP Packet Overheads, 
+		manipulating bits of header, and the conversion of header fields 
+		to binary and vice versa.
+	"""
 	_uint8 = ctypes.c_uint8
 	_uint16 = ctypes.c_uint16
 	_uint32 = ctypes.c_uint32
@@ -42,6 +47,7 @@ class Header:
 			self.fields[fieldName] = fieldValue
 
 	def toBinary(self):
+		""" Converts the Header Fields to a Binary String """
 		headerBytes = bytearray()
 		for field in self._fieldsizes.iteritems():
 			fieldName, fieldTypeLength = field
@@ -53,10 +59,50 @@ class Header:
 
 	@staticmethod
 	def unBinary(headerBytes):
+		""" Converts the Binary String to Header Fields """
 		header = Header()
 		base = 0
-		
+		for field in header._fieldsizes.iteritems():
+			fieldName, fieldTypeLength = field
+			fieldType, fieldLength = fieldTypeLength
+			fieldValueInBinary = headerBytes[base : base + fieldLength]
+			fieldValue = fieldType.from_buffer(fieldValueInBinary).value
+			base += fieldLength
+			header.fields[fieldName] = fieldValue
 		return header
 
 class Flags:
+	"""
+	Flags class handles conversion of Flag fields to binary and vice versa.
+	"""
 	_flagTypes = ["SYN", "ACK", "NACK", "FIN"]
+
+	@staticmethod
+	def toBinary(Flag=None):
+		""" Converts list of flags to a binary string """
+		if Flag is None:
+			inputFlags = ()
+		else: inputFlags = list(Flag)
+		
+		flagsList = []
+		for i in range(0, len(Flags()._flagTypes)):
+			flagType = Flags()._flagTypes[i]
+			if flagType in inputFlags:
+				flagsList.append(0b1 << i)
+		
+		if len(inputFlags) > 0:
+			if len(flagsList) > 1:
+				byteString = reduce(lambda x, y: x | y, flagsList)
+			else: byteString = flagsList[0]
+		else: byteString = 0
+		return byteString
+
+	@staticmethod
+	def unBinary(flagBytes):
+		""" Converts binary string to list of flags """
+		flags = list()
+		for i in range(0, len(Flags()._flagTypes)):
+			flagType = Flags()._flagTypes[i]
+			if flagBytes >> i & 1:
+				flags.append(flagType)
+		return tuple(flags)
