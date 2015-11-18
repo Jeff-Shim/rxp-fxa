@@ -88,6 +88,9 @@ Return pointer to destination_string, NULL on error.
 class ConnectionStatus:
 	""" Enum to describe the status of socket connection """
 	NONE = "none"
+	HS_SYN_SENT = "handshake - SYN-SENT"
+	HS_SYN_RCVD = "handshake - SYN-RCVD"
+	HS_ESTABLISHED = "established"
 
 class Error(Exception):
 	""" Throws specified exception """

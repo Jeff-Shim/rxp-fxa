@@ -11,7 +11,7 @@ Files Submitted (Names & Description)
 - rxp/rxp_socket.py : Contains all logic for creating and manipulating RxP Socket
 - rxp/rxp_server.py : Contains all logic for running RxP Server
 - rxp/rxp_client.py : Contains all logic for running RxP Client
-- rxp/rxp_header.py : Header object for a single packet
+- rxp/rxp_header.py : Header object for a single packet. Prepended to packet object
 - rxp/rxp_packet.py : A single packet object
 
 Instructions for Compiling & Running Application
