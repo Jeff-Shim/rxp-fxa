@@ -24,8 +24,8 @@ class Packet:
 			self.data = data[0 : dataLength-1]
 		else: self.data = data
 
-		self.maxSeqNum = 2**16
 		self.maxWindowSize = 2**16 - self.header.headerLength - 1
+		self.header.fields["recvWindow"] = self.maxWindowSize
 		self.header.fields["length"] = len(data)
 		self.header.fields["checksum"] = self.checksum()
 

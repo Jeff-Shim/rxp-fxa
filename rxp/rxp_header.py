@@ -25,8 +25,8 @@ class Header:
 		# flag fields {FieldName: (Type, NumBytes)}
 		self.fields = OrderedDict()
 		self._fieldsizes = OrderedDict([
-			("srcAddr", (self._uint16, 2)),
-			("destAddr", (self._uint16, 2)),
+			("srcPort", (self._uint16, 2)),
+			("destPort", (self._uint16, 2)),
 			("seqNum", (self._uint32, 4)),
 			("ackNum", (self._uint32, 4)),
 			("flags", (self._uint8, 1)),
