@@ -10,6 +10,8 @@ RxP Socket
 """
 import random
 import socket
+import rxp_header
+import rxp_packet
 
 class Socket:
 	""" socket()
@@ -34,7 +36,6 @@ class Socket:
 		self.seqNum = SequenceNumber()
 		self.ackNum = SequenceNumber()
 
-
 	def bind(self, address=None):
 		""" Assigns the address given as address to the socket """
 		if address != None:
@@ -42,6 +43,19 @@ class Socket:
 			self._socket.bind(address)
 		else:
 			raise Error("No address specified.")
+
+	def connect(self):
+		""" connect(socket_descriptor, socket_address, address_length)
+		Standard connect() could not create connection for UDP, 
+			since UDP is connectionless protocol. 
+			RxP’s connect() will create an object that is similar with 
+			TCP’s Transmission Control Block(TCB) which maintain data 
+			for each connection. That TCB-like object has socket information, 
+			pointers to buffer where data is held, and all other data needed 
+			to maintain reliable stream connection.
+		Return: 0 if connection succeeds, -1 for error.
+		"""
+		return 0
 
 	def listen(self):
 		""" Makes server socket wait and listen to incoming connection requests """
@@ -182,7 +196,64 @@ class Socket:
 			under connection-established environment.
 		Return: return the number of characters received. 
 		"""
+		if self.srcAddr is None:
+			raise Error("Socket is not bound.")
+		if self.acceptStrings:
+			message = ""
+		else: message = bytes()
+		waitLimit = self._RESEND_LIMIT
+		while waitLimit:
+			try:
+				data, address = self.recvfrom(self.recvWindow)
+			except socket.timeout:
+				waitLimit -= 1
+				continue
+			try:
+				packet = constructPacket(data, checkSeq=False)
+			except Error as err:
+				if err.message == "invalid_checksum":
+					continue
+				if err.message == "sequence_mismatch":
+					raise err
+			else:
+				if packet.header.fields["seqNum"] >= self.ackNum:
+					self.ackNum.nextSeq()
+					message += packet.data
+				self.send("@ACK")
+				if packet.checkFlags(("FIN",)):
+					self.send("@ACK")
+					self._socket.close()
+					break
 		return 0
+
+	def close(self):
+		""" Closes the connection """
+		flags = rxp_header.Flags.toBinary(("FIN"),)
+		header = rxp_header.Header(
+			srcPort = self.srcAddr[1],
+			destPort = self.destAddr[1],
+			seqNum = self.seqNum,
+			flags = flags)
+		packet = Packet(header)
+		self.seqNum.nextSeq()
+
+		waitLimit = self._RESEND_LIMIT
+		while waitLimit:
+			self.sendto(packet, self.destAddr)
+			try:
+				data, address = self.recvfrom(self.recvWindow)
+				packet = self.constructPacket(data, checkSeq=False)
+			except socket.timeout:
+				waitLimit -= 1
+				continue
+			except Error as err:
+				if err.message == "invalid_checksum":
+					continue
+			else:
+				if packet.checkFlags(("ACK",), exclusive=True):
+					self._socket.close()
+					break
+				else: waitLimit -= 1
 
 	def constructPacket(self, data, address=None, checkSeq=True, checkAck=False):
 		packet = rxp_header.Packet.unBinary(data, toString=self.acceptStrings)
