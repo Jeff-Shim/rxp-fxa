@@ -50,7 +50,7 @@ class Socket:
 			raise Error("Socket is not bound.")
 		while waitingTime > 0:
 			try:
-				data, address = self.rcvfrom(self.recvWindow)
+				data, address = self.recvfrom(self.recvWindow)
 				packet = self._packet(data, checkSeq=False)
 			except socket.timeout:
 				waitingTime -= 1
@@ -83,14 +83,12 @@ class Socket:
 		self._socket.sendto(packet.toBinary(), address)
 
 	def send(self, message):
-		""" send(socket_descripter, buffer_to_send, length_of_buffer)
+		""" 
 		Write data to stream. 
-		This function should work only when connection is establised. 
-			Otherwise, error is returned.
 		Since this make use of UDP's sendto() function,
 			this function automatically takes care of destination address
 			under connection-established environment.
-		Return: return the number of characters sent. -1 is returned on error.
+		Return: return the number of characters sent. 
 		"""
 		if self.srcAddr is None:
 			raise Error("Socket is not bound.")
@@ -177,12 +175,12 @@ class Socket:
 		return (data, address)
 
 	def recv(self):
-		""" recv(socket_descripter, buffer_to_store_data, length_to_receive)
-		Read data from stream and store it to buffer.
+		""" 
+		Read data from stream. 
 		Since this make use of UDP's recvfrom() function,
 			this function automatically takes care of source address
 			under connection-established environment.
-		Return: number of bytes received, -1 on error
+		Return: return the number of characters received. 
 		"""
 		return 0
 

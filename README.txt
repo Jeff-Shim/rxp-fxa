@@ -19,8 +19,12 @@ Instructions for Compiling & Running Application
 
 Protocol and API Description
  << RxP >>
-- rxp_socket.socket() : Creates the RxP socket--an endpoint for communication.
++ rxp_socket.socket() : Creates the RxP socket--an endpoint for communication.
 - socket.bind(address) : Binds a socket instance to address and port given by 'address'.
+- socket.listen(): Socket waits and listens for incoming connection request
+- socket.accept(): Socket accepts incoming connection.
+- socket.send(): Used to either send handshake signals or send datagrams.
+- socket.recv(): Used to either recv handshake signals or recv datagrams.
 
  << FxA >>
 
