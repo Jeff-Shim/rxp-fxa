@@ -75,7 +75,7 @@ class Flags:
 	"""
 	Flags class handles conversion of Flag fields to binary and vice versa.
 	"""
-	_flagTypes = ["SYN", "ACK", "NACK", "FIN"]
+	_flagTypes = ["SYN", "ACK", "NACK", "FIN", "NM", "EM"]
 
 	@staticmethod
 	def toBinary(Flag=None):

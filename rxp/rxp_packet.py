@@ -14,14 +14,14 @@ class Packet:
 	"""
 	Packet object which includes the RxP header and data.
 	"""
+	DATASIZE = 3
 	def __init__(self, header=None, data=""):
 		if header is None:
 			self.header = rxp_header.Header()
 		else: self.header = header
 
-		dataLength = 3
-		if len(data) > dataLength:
-			self.data = data[0 : dataLength-1]
+		if len(data) > DATASIZE:
+			self.data = data[0 : DATASIZE-1]
 		else: self.data = data
 
 		self.maxWindowSize = 2**16 - self.header.headerLength - 1

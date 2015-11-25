@@ -8,6 +8,7 @@ Reliable Transfer Protocol (RxP)
 
 RxP Socket
 """
+from collections import deque
 import random
 import socket
 import rxp_header
@@ -23,6 +24,8 @@ class Socket:
 
 	_TIMEOUT = 30
 	_RESEND_LIMIT = 100
+	_SEND_WINDOW = 1
+	_ACCEPTS_ASCII = False
 
 	def __init__(self):
 
@@ -35,6 +38,7 @@ class Socket:
 		self.destAddr = None
 		self.seqNum = SequenceNumber()
 		self.ackNum = SequenceNumber()
+		self.recvWindow = rxp_packet.Packet().maxWindowSize
 
 	def bind(self, address=None):
 		""" Assigns the address given as address to the socket """
@@ -44,7 +48,7 @@ class Socket:
 		else:
 			raise Error("No address specified.")
 
-	def connect(self):
+	def connect(self, destAddress):
 		""" connect(socket_descriptor, socket_address, address_length)
 		Standard connect() could not create connection for UDP, 
 			since UDP is connectionless protocol. 
@@ -55,7 +59,14 @@ class Socket:
 			to maintain reliable stream connection.
 		Return: 0 if connection succeeds, -1 for error.
 		"""
-		return 0
+		if self.srcAddr is None:
+			raise Error("Socket is not bound.")
+		self.destAddr = destAddress
+		self.seqNum.set()
+		returnedPacket = self.send("@SYN")
+		self.ackNum.set(returnedPacket.header.fields["seqNum"] + 1)
+		self.send("@ACK")
+		self.status = ConnectionStatus.ESTABLISHED
 
 	def listen(self):
 		""" Makes server socket wait and listen to incoming connection requests """
@@ -90,7 +101,7 @@ class Socket:
 			raise Error("No Connection.")
 		self.seqNum.set()
 		self.send("@SYNACK")
-		self.status = ConnectionStatus.HANDSHAKING
+		self.status = ConnectionStatus.ESTABLISHED
 
 	def sendto(self, packet, address):
 		""" Write packet data and send to address """
@@ -114,7 +125,7 @@ class Socket:
 				header = rxp_header.Header(
 					srcPort = self.srcAddr[1],
 					destPort = self.destAddr[1],
-					seqNum = self.seqNum,
+					seqNum = self.seqNum.num,
 					flags = flags)
 				packet = Packet(header)
 				self.seqNum.nextSeq()
@@ -141,8 +152,8 @@ class Socket:
 				header = rxp_header.Header(
 					srcPort = self.srcAddr[1],
 					destPort = self.destAddr[1],
-					seqNum = self.seqNum,
-					ackNum = self.ackNum,
+					seqNum = self.seqNum.num,
+					ackNum = self.ackNum.num,
 					flags = flags)
 				packet = Packet(header)
 				self.seqNum.nextSeq()
@@ -168,14 +179,75 @@ class Socket:
 				header = rxp_header.Header(
 					srcPort = self.srcAddr[1],
 					destPort = self.destAddr[1],
-					ackNum = self.ackNum,
+					ackNum = self.ackNum.num,
 					flags = flags)
 				self.sendto(Packet(header), self.destAddr)
 		else:
-			"""
-			TODO: send logic for regular messages
-			"""
-		return 0
+			dataQ = deque()
+			packetQ = deque()
+			sentQ = deque()
+			prevSeqNum = self.seqNum.num
+
+			dataLength = rxp_header.Packet.DATASIZE
+			for i in range(0, len(message), dataLength):
+				if i + dataLength > len(message):
+					dataQ.append(message[i:])
+				else: dataQ.append(message[i:i+dataLength])
+
+			for data in dataQ:
+				flagsList = list()
+				if data == dataQ[0]:
+					flagsList.append("NM")
+				if data == dataQ[-1]:
+					flagsList.append("EM")
+				flags = rxp_header.Header.toBinary(flagsList)
+				header = rxp_header.Header(
+					srcPort = self.srcAddr[1],
+					destPort = self.destAddr[1],
+					seqNum = self.seqNum.num,
+					flags = flags)
+				packet = rxp_packet.Packet(header, data)
+				self.seqNum.nextSeq()
+				packetQ.append(packet)
+
+			numResends = self._RESEND_LIMIT
+			while packetQ and numResends:
+				sendWindow = self._SEND_WINDOW
+				while packetQ and sendWindow:
+					packet = packetQ.popleft()
+					self.sendto(packet, self.destAddr)
+					prevSeqNum = packet.header.fields["seqNum"]
+					sendWindow -= 1
+					sendQ.append(packet)
+				try: 
+					data, address = self.recvfrom(self.recvWindow)
+					packet = self.constructPacket(data, checkSeq=False, checkAck=prevSeqNum)
+				except socket.timeout:
+					sendWindow = self._SEND_WINDOW
+					numResends -= 1
+					sentQ.reverse()
+					packetQ.extendleft(sentQ)
+					sentQ.clear()
+				except Error as err:
+					if err.message == "invalid_checksum":
+						continue
+				else:
+					sendWindow += 1
+					if isinstance(packet, int):
+						while packet < 0:
+							packetQ.appendleft(sendQ.pop())
+							packet += 1
+					elif packet.checkFlags(("SYN","ACK"), exclusive=True):
+						self.send("@ACK")
+						numResends = self._RESEND_LIMIT
+						sentQ.reverse()
+						packetQ.extendleft(sentQ)
+						sentQ.clear()
+					elif packet.checkFlags(("ACK",), exclusive=True):
+						self.seqNum.set(packet.header.fields["ackNum"])
+						numResends = self._RESEND_LIMIT
+						if sentQ:
+							sentQ.popleft()
 
 	def recvfrom(self, recvWindow, flags=None):
 		while True:
@@ -198,7 +270,7 @@ class Socket:
 		"""
 		if self.srcAddr is None:
 			raise Error("Socket is not bound.")
-		if self.acceptStrings:
+		if self._ACCEPTS_ASCII:
 			message = ""
 		else: message = bytes()
 		waitLimit = self._RESEND_LIMIT
@@ -256,7 +328,7 @@ class Socket:
 				else: waitLimit -= 1
 
 	def constructPacket(self, data, address=None, checkSeq=True, checkAck=False):
-		packet = rxp_header.Packet.unBinary(data, toString=self.acceptStrings)
+		packet = rxp_header.Packet.unBinary(data, toString=self._ACCEPTS_ASCII)
 		if packet.verifyChecksum() == False:
 			raise Error("invalid_checksum")
 		if checkSeq: 
