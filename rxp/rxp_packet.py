@@ -14,14 +14,14 @@ class Packet:
 	"""
 	Packet object which includes the RxP header and data.
 	"""
-	DATASIZE = 3
 	def __init__(self, header=None, data=""):
 		if header is None:
 			self.header = rxp_header.Header()
 		else: self.header = header
 
-		if len(data) > DATASIZE:
-			self.data = data[0 : DATASIZE-1]
+		self.datalength = 3
+		if len(data) > self.datalength:
+			self.data = data[0 : self.datalength-1]
 		else: self.data = data
 
 		self.maxWindowSize = 2**16 - self.header.headerLength - 1
@@ -36,6 +36,7 @@ class Packet:
 
 	def checksum(self):
 		""" Standard UDP checksum algorithm """
+		self.header.fields["checksum"] = 0
 		binaryStr = str(self.toBinary())
 		result = 0
 		for i in range(0, len(binaryStr) - 1, 2):
@@ -46,7 +47,8 @@ class Packet:
 
 	def toBinary(self):
 		""" Converts Packet header and data into a binary string """
-		packetBytes = bytearray().extend(self.header.toBinary())
+		packetBytes = bytearray()
+		packetBytes.extend(self.header.toBinary())
 		if isinstance(self.data, str):
 			packetBytes.extend(self.data.encode(encoding='UTF-8'))
 		elif isinstance(self.data, bytearray) or isinstance(self.data, bytes):
@@ -56,9 +58,9 @@ class Packet:
 	@staticmethod
 	def unBinary(packetBytes, toString=False):
 		""" Converts a binary string to Packet header and data """
-		headerSize = Header().headerLength
+		headerSize = rxp_header.Header().headerLength
 		packet = Packet()
-		packet.header = rxp_header.unBinary(packetBytes[0:headerSize])
+		packet.header = rxp_header.Header.unBinary(packetBytes[0:headerSize])
 		if toString:
 			packet.data = packetBytes[headerSize:].decode(encoding='UTF-8')
 		else: packet.data = packetBytes[headerSize:]
@@ -69,6 +71,8 @@ class Packet:
 		Compares checksum value from header field and a newly calculated checksum
 		"""
 		packetChecksum = self.header.fields["checksum"]
+		print "verifyChecksum:self.header.fields[\"checksum\"]:", packetChecksum
+		print "verifyChecksum:self.checksum:", self.checksum()
 		return packetChecksum == self.checksum()
 
 	def checkFlags(self, targetFlags, exclusive=False):

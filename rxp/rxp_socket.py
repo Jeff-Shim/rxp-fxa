@@ -49,15 +49,9 @@ class Socket:
 			raise Error("No address specified.")
 
 	def connect(self, destAddress):
-		""" connect(socket_descriptor, socket_address, address_length)
-		Standard connect() could not create connection for UDP, 
-			since UDP is connectionless protocol. 
-			RxP’s connect() will create an object that is similar with 
-			TCP’s Transmission Control Block(TCB) which maintain data 
-			for each connection. That TCB-like object has socket information, 
-			pointers to buffer where data is held, and all other data needed 
-			to maintain reliable stream connection.
-		Return: 0 if connection succeeds, -1 for error.
+		""" Begins the connection handshake process. 
+		Sends a SYN signal, receives SYNACK, then sends ACK.
+		Connection status is then changed to established.
 		"""
 		if self.srcAddr is None:
 			raise Error("Socket is not bound.")
@@ -188,7 +182,7 @@ class Socket:
 			sentQ = deque()
 			prevSeqNum = self.seqNum.num
 
-			dataLength = rxp_header.Packet.DATASIZE
+			dataLength = rxp_header.Packet().dataLength
 			for i in range(0, len(message), dataLength):
 				if i + dataLength > len(message):
 					dataQ.append(message[i:])
@@ -337,7 +331,7 @@ class Socket:
 			isACK = packet.checkFlags(("ACK",), exclusive=True)
 			packetSeqNum = packet.header.fields["seqNum"]
 			socketAckNum = self.ackNum
-			if not isSYN && packetSeqNum && socketAckNum != packetSeqNum:
+			if not isSYN and packetSeqNum and socketAckNum != packetSeqNum:
 				raise Error("sequence_mismatch")
 			elif not isACK:
 				self.ackNum.nextSeq()
