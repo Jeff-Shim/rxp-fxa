@@ -119,9 +119,11 @@ while True:
 		elif (len(command) > 2):
 			print "Wrong command: Try again."
 		fileToSend = command[1]
-		if os.path.isfile(fileToSend):
+		if not os.path.isfile(fileToSend):
 			print "Such file doesn't exist"
 		else:
+			print "Sending " + fileToSend + "..."
+
 			request = "post:" + fileToSend
 			sendFlag = SendData(sock, request)
 			if (sendFlag != 0):

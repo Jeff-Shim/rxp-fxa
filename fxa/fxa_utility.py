@@ -10,8 +10,7 @@ FxA Utility
 	This utility functions work in both FxA server and client.
 """
 
-import time,readline,thread,threading
-import sys,struct,fcntl,termios
+import sys
 import os.path
 # sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
@@ -41,10 +40,10 @@ def SendData(sock, dataToSend):
 		print "SendData(): nothing to send"
 		return 1
 
-def ReceiveData(sock):
+def ReceiveData(sock, blocking=False):
 	""" Receive data using socket """
 	# print "ReceiveData(): trying to receive data..." # DEBUG
-	recvFlag, recvData = sock.recv()
+	recvFlag, recvData = sock.recv(blocking=blocking)
 	# print "ReceiveData(): received data ->", str(recvData)[:40] # DEBUG
 	if recvFlag == True:
 		return True, recvData
@@ -53,19 +52,6 @@ def ReceiveData(sock):
 	# elif bytesReceived == 0:
 	# 	return 1, None
 	return False, ""
-
-
-def clearCurrentReadline():
-	# http://stackoverflow.com/questions/2082387/reading-input-from-raw-input-without-having-the-prompt-overwritten-by-other-th
-	# Next line said to be reasonably portable for various Unixes
-	(rows,cols) = struct.unpack('hh', fcntl.ioctl(sys.stdout, termios.TIOCGWINSZ,'1234'))
-
-	text_len = len(readline.get_line_buffer())+2
-
-	# ANSI escape sequences (All VT100 except ESC[0G)
-	sys.stdout.write('\x1b[2K')						 # Clear current line
-	sys.stdout.write('\x1b[1A\x1b[2K'*(text_len/cols))  # Move cursor up and clear line
-	sys.stdout.write('\x1b[0G')						 # Move to start of line
 
 
 def HandleFxAClient(sock):
@@ -78,11 +64,10 @@ def HandleFxAClient(sock):
 
 	"""
 
-	""" Clear terminal line """
-	clearCurrentReadline()
+	
 	# first recieved data would be number of data chunks to receive
 	# receive as string and convert to integer
-	recvFlag, recvData = ReceiveData(sock)
+	recvFlag, recvData = ReceiveData(sock, blocking=True)
 	if (recvFlag != True):
 		DieWithUserMessage("ReceiveData()", \
 			"unknown error")
@@ -96,6 +81,7 @@ def HandleFxAClient(sock):
 		if not os.path.isfile(fileToSend):
 			print "Such file '" + str(fileToSend) + "' doesn't exist"
 		else:
+			print "Sending " + fileToSend + "..."
 			# Get file size and count number of data to send
 			fileSize = os.path.getsize(fileToSend)
 			numOfChunks = int(ceil(fileSize / DATA_CHUNK_SIZE))
@@ -122,6 +108,8 @@ def HandleFxAClient(sock):
 	elif (command[0].lower() == "post"):
 		# When client request is POST request
 		fileToGet = command[1]
+
+		print "Receiving " + fileToGet + "..."
 
 		# first recieved data would be number of data chunks to receive
 		# receive as string and convert to integer
@@ -150,11 +138,3 @@ def HandleFxAClient(sock):
 			print "Received " + fileToGet + " successfully."
 	else:
 		DieWithUserMessage("HandleFxAClient()", "unknown request")
-
-	""" Print user command again """ 
-	last_line = readline.get_line_buffer()
-	if last_line.endswith('\n'):
-		sys.stdout.write('server command > ')
-	else:
-		sys.stdout.write('server command > ' + readline.get_line_buffer())
-	sys.stdout.flush()

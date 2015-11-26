@@ -40,6 +40,8 @@ class Packet:
 		chksumBackup = self.header.fields["checksum"]
 		self.header.fields["checksum"] = 0
 		binaryStr = str(self.toBinary())
+		if len(binaryStr) % 2 == 1: # odd length string
+			binaryStr += "\x00"
 		result = 0
 		for i in range(0, len(binaryStr) - 1, 2):
 			word = ord(binaryStr[i]) + (ord(binaryStr[i+1]) << 8)
@@ -76,7 +78,7 @@ class Packet:
 		Compares checksum value from header field and a newly calculated checksum
 		"""
 		packetChecksum = self.header.fields["checksum"]
-		print "packet.verifyChecksum(): compare checksum -> " + str(packetChecksum) + ' vs. ' + str(self.checksum()) # DEBUG
+		# print "packet.verifyChecksum(): compare checksum -> " + str(packetChecksum) + ' vs. ' + str(self.checksum()) # DEBUG
 		return packetChecksum == self.checksum()
 
 	def checkFlags(self, targetFlags, exclusive=False):

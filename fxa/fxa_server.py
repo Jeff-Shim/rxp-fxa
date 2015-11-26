@@ -17,6 +17,19 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from rxp.rxp_socket import * # Import RxP Protocol
 from fxa_utility import *
 
+def clearCurrentReadline():
+	# http://stackoverflow.com/questions/2082387/reading-input-from-raw-input-without-having-the-prompt-overwritten-by-other-th
+	# Next line said to be reasonably portable for various Unixes
+	(rows,cols) = struct.unpack('hh', fcntl.ioctl(sys.stdout, termios.TIOCGWINSZ,'1234'))
+
+	text_len = len(readline.get_line_buffer())+2
+
+	# ANSI escape sequences (All VT100 except ESC[0G)
+	sys.stdout.write('\x1b[2K')						 # Clear current line
+	sys.stdout.write('\x1b[1A\x1b[2K'*(text_len/cols))  # Move cursor up and clear line
+	sys.stdout.write('\x1b[0G')						 # Move to start of line
+
+
 class ClientHandlerThread(threading.Thread):
 	def __init__(self, target, *args):
 		self._stopevent = threading.Event()
@@ -72,11 +85,22 @@ class ServerThread(threading.Thread):
 			# if (clntSock < 0):
 			# 	DieWithUserMessage("accept() failed", \
 			# 		"socket failed to accept incoming connection")
+			
+			""" Clear terminal line """
+			clearCurrentReadline()
 
 			""" Handle accepted client """	
 			clientThread = ClientHandlerThread(HandleFxAClient, sock)
 			clientThread.start()
 			clientThread.join()
+
+			""" Print user command again """ 
+			last_line = readline.get_line_buffer()
+			if last_line.endswith('\n'):
+				sys.stdout.write('server command > ')
+			else:
+				sys.stdout.write('server command > ' + readline.get_line_buffer())
+			sys.stdout.flush()
 
 		""" When server is terminated by user command """
 		print "%s ends" % (self.getName(),)

@@ -64,7 +64,7 @@ class Socket:
 
 	def listen(self):
 		""" Makes server socket wait and listen to incoming connection requests """
-		print "socket.listen() called."
+		# print "socket.listen() called." # DEBUG
 		waitingTime = self._RESEND_LIMIT * 100
 		if self.srcAddr is None:
 			raise Error("Socket is not bound.")
@@ -77,6 +77,7 @@ class Socket:
 				continue
 			except Error as err:
 				if err.message == "invalid_checksum":
+					print "socket.listen(): invalid checksum. Trying again..."
 					continue
 			else:
 				if packet.checkFlags(("SYN",), exclusive=True):
@@ -87,11 +88,11 @@ class Socket:
 		ack = packet.header.fields["seqNum"] + 1
 		self.ackNum.set(ack)
 		self.destAddr = address
-		print "socket.listen() finished."
+		# print "socket.listen() finished." # DEBUG
 
 	def accept(self):
 		""" Accepts incoming connection. Returns sender's address. """
-		print "socket.accept() called."
+		# print "socket.accept() called." # DEBUG
 		if self.srcAddr is None:
 			raise Error("Socket is not bound.")
 		if self.destAddr is None:
@@ -99,7 +100,7 @@ class Socket:
 		returnedPacket = self.send("@SYNACK", sendFlagOnly=True)
 		self.ackNum.set(returnedPacket.header.fields["seqNum"])
 		self.status = ConnectionStatus.ESTABLISHED
-		print "socket.accept() finished."
+		print "Connection established with client: " + str(self.destAddr)
 
 	def sendto(self, packet, address):
 		""" Write packet data and send to address """
@@ -202,7 +203,8 @@ class Socket:
 			sentQ = deque()
 			prevSeqNum = int(self.seqNum.num)
 
-			dataLength = self.recvWindow
+			headerSize = rxp_header.Header().headerLength
+			dataLength = self.recvWindow - headerSize
 			for i in range(0, len(message), dataLength):
 				""" 
 				Split data into chunks and put them into dataQ
@@ -210,11 +212,11 @@ class Socket:
 				"""
 				if i + dataLength > len(message):
 					dataQ.append(message[i:])
-					print "socket.send(): splitted data size is -> " + str(len(message[i:])) # DEBUG
+					# print "socket.send(): splitted data size is -> " + str(len(message[i:])) # DEBUG
 				else: 
 					dataQ.append(message[i:i+dataLength])
-					print "socket.send(): splitted data size is -> " + str(len(message[i:i+dataLength])) # DEBUG
-			print "socket.send(): splitted data into " + str(len(dataQ)) + " chunks" # DEBUG
+					# print "socket.send(): splitted data size is -> " + str(len(message[i:i+dataLength])) # DEBUG
+			# print "socket.send(): splitted data into " + str(len(dataQ)) + " chunks" # DEBUG
 
 			lastInd = len(dataQ) - 1
 			for ind, data in enumerate(dataQ):
@@ -226,11 +228,11 @@ class Socket:
 				"""
 				if ind == 0:
 					""" Add NM flag if this data chunk is the first chunk. """
-					print "socket.send(): adding NM flag to first chunk" # DEBUG
+					# print "socket.send(): adding NM flag to first chunk" # DEBUG
 					flagsList.append("NM")
 				if ind == lastInd:
 					""" Add EM flag if this data chunk is the last chunk. """
-					print "socket.send(): adding EM flag to last chunk" # DEBUG
+					# print "socket.send(): adding EM flag to last chunk" # DEBUG
 					flagsList.append("EM")
 				flags = rxp_header.Flags.toBinary(flagsList)
 				header = rxp_header.Header(
@@ -307,7 +309,7 @@ class Socket:
 		# print "recvfrom(): received data (shown in raw string): ", str(data) # DEBUG
 		return (data, address)
 
-	def recv(self):
+	def recv(self, blocking=False):
 		""" 
 		Read data from stream. 
 		Since this make use of UDP's recvfrom() function,
@@ -320,26 +322,31 @@ class Socket:
 		waitLimit = self._RESEND_LIMIT
 		while waitLimit:
 			try:
+				if blocking:
+					self.timeout = self._socket.settimeout(None)
 				data, address = self.recvfrom(self.recvWindow)
 				packet = self.constructPacket(data, checkSeq=False)
+				if blocking:
+					self.timeout = self._socket.settimeout(self._TIMEOUT)
 			except socket.timeout:
+				print "socket.recv(): timeout. Trying again..." # DEBUG
 				waitLimit -= 1
 				continue
 			except Error as err:
 				if err.message == "invalid_checksum":
-					print "socket.recv(): invalid checksum value" # DEBUG
+					print "socket.recv(): invalid checksum value. Trying again..."
 					continue
 				if err.message == "sequence_mismatch":
 					raise err
 			else:
-				print "socket.recv(): data received, start processing data" # DEBUG
+				# print "socket.recv(): data received, start processing data" # DEBUG
 				if packet.checkFlags(("FIN",)):
 					self.send("@ACK", sendFlagOnly=True)
 					self._socket.close()
 					break
 				if packet.header.fields["seqNum"] >= self.ackNum:
 					self.ackNum.nextSeq()
-					if packet.checkFlags(("NM",)):
+					if packet.checkFlags(("NM",), exclusive=False): 
 						""" First chunk of message arrived """
 						if self._ACCEPTS_ASCII:
 							message = ""
@@ -349,8 +356,7 @@ class Socket:
 					""" Append received data to message """
 					message += packet.data
 					self.send("@ACK", sendFlagOnly=True)
-
-					if packet.checkFlags(("EM",)):
+					if packet.checkFlags(("EM",), exclusive=False):
 						""" Return message if last chunk is received """
 						return True, message
 				
