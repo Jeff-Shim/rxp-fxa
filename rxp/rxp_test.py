@@ -203,14 +203,148 @@ def testSocketConnect(clientAddr, serverAddr, netAddr, timeout=3):
 
 	assertions = []
 
-	assertions.append(client.connStatus == ConnectionStatus.ESTABLISHED)
-	assertions.append(server.connStatus == ConnectionStatus.ESTABLISHED)
+	assertions.append(client.status == ConnectionStatus.ESTABLISHED)
+	assertions.append(server.status == ConnectionStatus.ESTABLISHED)
 	assertions.append(client.ackNum.num == server.seqNum.num)
 	assertions.append(client.seqNum.num == server.ackNum.num)
 
 	return all(assertions)
 
+def testSocketSendRcv(clientAddr, serverAddr, netAddr, timeout=3, message="Hello World!"):
 
+	global servermsg
+	servermsg = ""
+
+	def runserver(server):
+		global servermsg
+		try:
+			server.listen()
+			server.accept()
+			servermsg = server.recv()
+		except Exception as e:
+			logging.debug("server " + str(e))
+
+	# create client and server
+	client = Socket()
+	client.bind(clientAddr)
+	client.timeout = timeout
+	client.acceptStrings = True
+
+	server = Socket()
+	server.bind(serverAddr)
+	server.timeout = timeout
+	server.acceptStrings = True
+
+
+	# run server
+	serverThread = threading.Thread(
+		target=runserver, args=(server,))
+	serverThread.setDaemon(True)
+	serverThread.start()
+
+	# connect to server
+	client.connect(netAddr)
+
+	# send message
+	client.send(message)
+
+	# close server
+	serverThread.join()
+
+	# check if server data matches 
+	# message
+	logging.debug("client msg: " + str(message))
+	logging.debug("server msg: " + str(servermsg))
+
+	return message == servermsg
+
+def testSocketTimeout(clientAddr, serverAddr, netAddr, timeout=3):
+	
+	assertions = []
+
+	client = Socket()
+	client.timeout = timeout
+	client.bind(clientAddr)
+	server = Socket()
+	server.timeout = timeout
+	server.bind(serverAddr)
+
+	def runserver(server):
+		server.listen()
+		server.accept()
+
+	def expectTimeout(func, *args):
+		logging.debug(
+			"trying " + func.__name__ + "...")
+		try:
+			func(*args)
+		except RxPException as e:
+			if e.type == RxPException.CONNECTION_TIMEOUT:
+				assertions.append(True)
+			else:
+				assertions.append(False)
+
+	# set up server
+	serverThread = threading.Thread(
+		target=runserver, args=(server,))
+	serverThread.setDaemon(True)
+
+	# test listening with a timeout
+	expectTimeout(server.listen)
+
+	# run server and connect
+	serverThread.start()
+	client.connect(netAddr)
+
+	expectTimeout(client.recv)
+
+	serverThread.join()
+
+	return all(assertions)
+
+def testRequestSendPermission(clientAddr, serverAddr, netAddr, timeout=3):
+
+	message = "Hello World!"
+	servermsg = " right back at ya"
+	expectedResult = message + servermsg
+
+	client = Socket()
+	client.timeout = timeout
+	client.bind(clientAddr)
+	client.acceptStrings = True
+	server = Socket()
+	server.timeout = timeout
+	server.bind(serverAddr)
+	server.acceptStrings = True
+
+	def runserver(server):
+		server.listen()
+		server.accept()
+		msg = server.recv()
+		server.send(msg + servermsg)
+		msg2 = server.recv()
+
+	# create and start server thread
+	serverThread = threading.Thread(
+		target=runserver, 
+		args=(server,))
+	serverThread.daemon = True
+	serverThread.start()
+
+	# connect to server
+	client.connect(netAddr)
+
+	client.send(message)
+	result = client.recv()
+
+	client.send(message)
+
+	serverThread.join()
+
+	logging.debug("expected: " + expectedResult)
+	logging.debug("result: " + result)
+
+	return result == expectedResult
 
 
 """
@@ -235,6 +369,9 @@ tester.add(testHeaderBinary) # 2
 tester.add(testPacketBinary) # 3
 tester.add(testPacketChecksum) # 4
 tester.add(testSocketConnect, C_ADDR, S_ADDR, N_ADDR, 0.01) # 5
+tester.add(testSocketSendRcv, C_ADDR, S_ADDR, N_ADDR, 0.01) # 6
+tester.add(testSocketTimeout, C_ADDR, S_ADDR, N_ADDR, 0.01) # 7
+tester.add(testRequestSendPermission, C_ADDR, S_ADDR, N_ADDR, 0.01) # 8
 
 # run tests
 tester.run(index=5)
