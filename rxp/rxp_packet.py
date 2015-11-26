@@ -19,12 +19,13 @@ class Packet:
 			self.header = rxp_header.Header()
 		else: self.header = header
 
-		self.datalength = 3
-		if len(data) > self.datalength:
-			self.data = data[0 : self.datalength-1]
-		else: self.data = data
+		# self.dataLength = 3
+		# if len(data) > self.dataLength:
+		# 	self.data = data[0 : self.dataLength-1]
+		# else: self.data = data
+		self.data = data
 
-		self.maxWindowSize = 2**16 - self.header.headerLength - 1
+		self.maxWindowSize = 1500 # 1500 Bytes
 		self.header.fields["recvWindow"] = self.maxWindowSize
 		self.header.fields["length"] = len(data)
 		self.header.fields["checksum"] = self.checksum()
@@ -36,6 +37,7 @@ class Packet:
 
 	def checksum(self):
 		""" Standard UDP checksum algorithm """
+		chksumBackup = self.header.fields["checksum"]
 		self.header.fields["checksum"] = 0
 		binaryStr = str(self.toBinary())
 		result = 0
@@ -43,16 +45,18 @@ class Packet:
 			word = ord(binaryStr[i]) + (ord(binaryStr[i+1]) << 8)
 			result = self._add(result, word)
 		result = ~result & 0xffff
+		self.header.fields["checksum"] = chksumBackup
 		return result
 
 	def toBinary(self):
 		""" Converts Packet header and data into a binary string """
 		packetBytes = bytearray()
 		packetBytes.extend(self.header.toBinary())
-		if isinstance(self.data, str):
-			packetBytes.extend(self.data.encode(encoding='UTF-8'))
-		elif isinstance(self.data, bytearray) or isinstance(self.data, bytes):
-			packetBytes.extend(self.data)
+		packetBytes.extend(bytearray(self.data))
+		# if isinstance(self.data, str):
+		# 	packetBytes.extend(bytearray(self.data))
+		# elif isinstance(self.data, bytearray) or isinstance(self.data, bytes):
+		# 	packetBytes.extend(self.data)
 		return packetBytes
 
 	@staticmethod
@@ -72,10 +76,16 @@ class Packet:
 		Compares checksum value from header field and a newly calculated checksum
 		"""
 		packetChecksum = self.header.fields["checksum"]
+		print "packet.verifyChecksum(): compare checksum -> " + str(packetChecksum) + ' vs. ' + str(self.checksum()) # DEBUG
 		return packetChecksum == self.checksum()
 
 	def checkFlags(self, targetFlags, exclusive=False):
-		""" Verify expected flags """
+		""" 
+		Verify expected flags 
+
+		exclusive: number of specified flags must match with number of 
+					flags in packet.
+		"""
 		flags = rxp_header.Flags().unBinary(self.header.fields["flags"])
 		validFlags = True
 		if exclusive and len(flags) != len(targetFlags):

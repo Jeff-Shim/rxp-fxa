@@ -10,13 +10,14 @@ FxA Utility
 	This utility functions work in both FxA server and client.
 """
 
-import sys
-# import os.path
+import time,readline,thread,threading
+import sys,struct,fcntl,termios
+import os.path
 # sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from math import ceil
 
-DATA_CHUNK_SIZE = 500
+DATA_CHUNK_SIZE = 128000 # 128 kB
 
 def DieWithUserMessage(msg, detail):
 	""" Die with user message """
@@ -27,7 +28,9 @@ def DieWithUserMessage(msg, detail):
 def SendData(sock, dataToSend):
 	""" Send data using socket """
 	if dataToSend:
+		# print "SendData(): sending data ->", str(dataToSend)[:40] # DEBUG
 		bytesSent = sock.send(dataToSend)
+		# print "SendData(): sent data successfully"# DEBUG
 		# if (bytesSent < 0):
 		# 	DieWithUserMessage("send()", "failed");
 		# elif (sys.getsizeof(dataToSend) != bytesSent):
@@ -40,12 +43,16 @@ def SendData(sock, dataToSend):
 
 def ReceiveData(sock):
 	""" Receive data using socket """
-	bytesReceived, data = sock.recv()
-	if (bytesReceived < 0):
-		DieWithUserMessage("recv()", "failed");
-	elif bytesReceived == 0:
-		return 1, None
-	return 0, data
+	# print "ReceiveData(): trying to receive data..." # DEBUG
+	recvFlag, recvData = sock.recv()
+	# print "ReceiveData(): received data ->", str(recvData)[:40] # DEBUG
+	if recvFlag == True:
+		return True, recvData
+	# if (bytesReceived < 0):
+	# 	DieWithUserMessage("recv()", "failed");
+	# elif bytesReceived == 0:
+	# 	return 1, None
+	return False, ""
 
 
 def clearCurrentReadline():
@@ -61,7 +68,7 @@ def clearCurrentReadline():
 	sys.stdout.write('\x1b[0G')						 # Move to start of line
 
 
-def HandleFxACleint(sock):
+def HandleFxAClient(sock):
 	""" 
 		Handle FxA Client
 
@@ -70,24 +77,24 @@ def HandleFxACleint(sock):
 		   be ready to received specified amount of data chunks
 
 	"""
+
+	""" Clear terminal line """
+	clearCurrentReadline()
 	# first recieved data would be number of data chunks to receive
 	# receive as string and convert to integer
 	recvFlag, recvData = ReceiveData(sock)
-	if (recvFlag == 1):
-		DieWithUserMessage("ReceiveData()", \
-			"nothing received even though there's something to receive")
-	elif (recvFlag != 0):
+	if (recvFlag != True):
 		DieWithUserMessage("ReceiveData()", \
 			"unknown error")
 	request = str(recvData)
 	command = request.split(':')
 	if (len(command) != 2):
-		DieWithUserMessage("HandleFxACleint()", "invalid request")
+		DieWithUserMessage("HandleFxAClient()", "invalid request")
 	elif (command[0].lower() == "get"):
 		# When client request is GET request
 		fileToSend = command[1]
-		if os.path.isfile(fileToSend):
-			print "Such file doesn't exist"
+		if not os.path.isfile(fileToSend):
+			print "Such file '" + str(fileToSend) + "' doesn't exist"
 		else:
 			# Get file size and count number of data to send
 			fileSize = os.path.getsize(fileToSend)
@@ -100,16 +107,18 @@ def HandleFxACleint(sock):
 			# Split file and send data
 			with open(fileToSend, "rb") as f:
 				for i in range(numOfChunks):
-				    dataChunk = f.read(DATA_CHUNK_SIZE)
-				    if dataChunk:
-				        sendFlag = SendData(sock, dataChunk)
-				        if (sendFlag != 0):
+					# print "reading chunk no." + str(i) # DEBUG
+					dataChunk = f.read(DATA_CHUNK_SIZE)
+					if dataChunk:
+						sendFlag = SendData(sock, dataChunk)
+						if (sendFlag != 0):
 							DieWithUserMessage("SendData()", \
 								"Program failed to send data properly")
 					else:
-						DieWithUserMessage("HandleFxACleint() for GET request", \
+						DieWithUserMessage("HandleFxAClient() for GET request", \
 							"Expected number of data chunks is different with actual data")
 				f.close()
+				print "Sent " + fileToSend + " successfully."
 	elif (command[0].lower() == "post"):
 		# When client request is POST request
 		fileToGet = command[1]
@@ -117,35 +126,32 @@ def HandleFxACleint(sock):
 		# first recieved data would be number of data chunks to receive
 		# receive as string and convert to integer
 		recvFlag, recvData = ReceiveData(sock)
-		if (recvFlag == 1):
-			DieWithUserMessage("ReceiveData()", \
-				"nothing received even though there's something to receive")
-		elif (recvFlag != 0):
+		if (recvFlag != True):
 			DieWithUserMessage("ReceiveData()", \
 				"unknown error")
 		numOfChunks = int(recvData)
 
+		directory = "server-recieved"
+		if not os.path.exists(directory):
+			os.makedirs(directory)
+
 		# Write binary data to a file
-		with open(fileToGet, 'wb') as f:
+		with open(directory + '/' + fileToGet, 'wb') as f:
 			# received designated number of data chunks then write it
 			for i in range(numOfChunks):
 				recvFlag, recvData = ReceiveData(sock)
-				if (recvFlag == 1):
-					DieWithUserMessage("ReceiveData()", \
-						"nothing received even though there's something to receive")
-				elif (recvFlag != 0):
+				if (recvFlag != True):
 					DieWithUserMessage("ReceiveData()", \
 						"unknown error")
 				# recvData must be binary data. There's no check for this.
 				f.seek(0, 2) # go to eof: relative position 0 from eof(2)
 				f.write(recvData)
 			f.close()
+			print "Received " + fileToGet + " successfully."
 	else:
-		DieWithUserMessage("HandleFxACleint()", "unknown request")
+		DieWithUserMessage("HandleFxAClient()", "unknown request")
 
-	""" Clear terminal line and print user command again """ 
-	clearCurrentReadline()
-	print "Handling Client Like this"
+	""" Print user command again """ 
 	last_line = readline.get_line_buffer()
 	if last_line.endswith('\n'):
 		sys.stdout.write('server command > ')

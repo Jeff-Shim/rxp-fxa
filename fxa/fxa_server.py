@@ -9,24 +9,28 @@ File Transfter Application (FxA)
 FxA Server
 """
 
-import time,readline,thread
+import time,readline,thread,threading
 import sys,struct,fcntl,termios
 import os.path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-import rxp_server
-
-import rxp.rxp_socket # Import RxP Protocol
+from rxp.rxp_socket import * # Import RxP Protocol
 from fxa_utility import *
 
 class ClientHandlerThread(threading.Thread):
 	def __init__(self, target, *args):
+		self._stopevent = threading.Event()
 		self._target = target
 		self._args = args
 		threading.Thread.__init__(self)
  
 	def run(self):
 		self._target(*self._args)
+
+	def join(self, timeout=None):
+		""" Stop the thread and wait for it to end. """
+		self._stopevent.set()
+		threading.Thread.join(self, timeout)
 
 
 class ServerThread(threading.Thread):
@@ -45,7 +49,7 @@ class ServerThread(threading.Thread):
 
 	def run(self):
 		""" Create socket """
-		sock = socket()
+		sock = Socket()
 		# if sock < 0:
 		# 	DieWithUserMessage('socket()', 'failed to create a socket')
 
@@ -59,18 +63,20 @@ class ServerThread(threading.Thread):
 		# if (sock.listen(self._MAXPENDING) < 0):
 		# 	DieWithUserMessage("listen()", \
 		# 		"failed to set socket to listen incoming connections")
+		""" Wait for a client to connect """
+		sock.accept()
 
 		""" Main Server Loop """
 		while not self._stopevent.isSet():
-			clntAddr = None
-			""" Wait for a client to connect """
-			clntSock, clntAddr = sock.accept()
-			if (clntSock < 0):
-				DieWithUserMessage("accept() failed", \
-					"socket failed to accept incoming connection")
+			
+			# if (clntSock < 0):
+			# 	DieWithUserMessage("accept() failed", \
+			# 		"socket failed to accept incoming connection")
 
 			""" Handle accepted client """	
-			ClientHandlerThread(HandleFxAClient, clntSock).start()
+			clientThread = ClientHandlerThread(HandleFxAClient, sock)
+			clientThread.start()
+			clientThread.join()
 
 		""" When server is terminated by user command """
 		print "%s ends" % (self.getName(),)
@@ -97,10 +103,10 @@ if len(sys.argv) != 4:
 
 if __name__ == '__main__':
 	portNumber = eval(sys.argv[1])
-	netemuHost = eval(sys.argv[2])
+	netemuHost = sys.argv[2]
 	netemuPort = eval(sys.argv[3])
 	# Create Server Thread Object and execute it
-	serverthread = ServerThread(portNumber, netemuHost, etemuPort)
+	serverthread = ServerThread(portNumber, netemuHost, netemuPort)
 	serverthread.start()
 	""" Get user command from this point """
 	# connection = False # connection is yet established
@@ -108,11 +114,14 @@ if __name__ == '__main__':
 		command = raw_input("server command > ")
 		command = command.split(None) # split given string with whitespace
 
+		if (len(command) < 1):
+			continue
+
 		if (command[0].lower() == "terminate"):
 			""" Terminates gracefully from the FxA-server """
 			# if (connection != True):
 			# 	print "Establish connection before using this command."
 			if (len(command) > 1):
-				print "Wront command: Try again."
+				print "Wrong command: Try again."
 			serverthread.join() # terminate server thread and close server
 			sys.exit()

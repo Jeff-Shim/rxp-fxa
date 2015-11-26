@@ -11,7 +11,7 @@ X: the port number at which the FxA-server’s UDP socket should bind to (odd nu
 A: the IP address of NetEmu
 P: the UDP port number of NetEmu 
 
-● Command: window W (only for projects that support pipelined and bi- directional transfers) 
+● Command: window W (only for projects that support pipelined and bi-directional transfers) 
 
 W: the maximum receiver’s window-size at the FxA-Server (in segments). 
 
@@ -25,7 +25,7 @@ The command-line arguments are:
 X: the port number at which the FxA-client’s UDP socket should bind to (even number). Please remember that this port number should be equal to the server’s port number minus 1. 
 
 A: the IP address of NetEmu
-P: the UDP port number of NetEmu 
+Z
 
 ● Command: connect - The FxA-client connects to the FxA-server (running at the same IP host). 
 
