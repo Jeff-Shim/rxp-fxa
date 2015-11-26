@@ -13,8 +13,9 @@ import sys
 import os.path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-# import rxp.rxp_socket # Import RxP Protocol
+import rxp.rxp_socket # Import RxP Protocol
 from fxa_utility import *
+from math import ceil
 
 DATA_CHUNK_SIZE = 500
 
@@ -27,22 +28,18 @@ if len(sys.argv) != 4:
 		+ 'A: the IP address of NetEmu\n' \
 		+ 'P: the UDP port number of NetEmu')
 
-portNumber = sys.argv[1]
-netemuAddress = sys.argv[2]
-netemuPort = sys.argv[3]
+portNumber = eval(sys.argv[1])
+netemuHost = eval(sys.argv[2])
+netemuPort = eval(sys.argv[3])
+destAddress = netemuHost, netemuPort
 
 """ Create socket """
 sock = socket()
-if sock < 0:
-	DieWithUserMessage('socket()', 'failed to create a socket')
+# if sock < 0:
+# 	DieWithUserMessage('socket()', 'failed to create a socket')
 
-""" Convert given string address into network address """
-rtnVal, networkAddr = sock.inet_pton(netemuAddress)
-if (rtnVal == 0):
-	DieWithUserMessage("inet_pton() failed", "invalid address string")
-elif (rtnVal < 0):
-	DieWithUserMessage("inet_pton() failed", "failed to convert address")
-networkPort = sock.htons(netemuPort)
+""" Bind to specified port """
+sock.bind(('', portNumber))
 
 """ Get user command from this point """
 connection = False # connection is yet established
@@ -55,10 +52,15 @@ while True:
 		if (len(command) > 1):
 			print "Wront command: Try again."
 		else:
-			if(sock.connect(networkAddr, networkPort) < 0):
-				DieWithUserMessage("connect() failed", "connection failed")
-			else:
+			sock.connect(destAddress)
+			if(sock.status == ConnectionStatus.ESTABLISHED):
 				connection = True
+			else:
+				DieWithUserMessage("connect() failed", "connection failed")
+			# if(sock.connect(networkAddr, networkPort) < 0):
+			# 	DieWithUserMessage("connect() failed", "connection failed")
+			# else:
+			# 	connection = True
 
 	elif (command[0].lower() == "get"):
 		""" Downloads file F from the server 
@@ -71,9 +73,9 @@ while True:
 		else:
 			print "Receiving " + fileToGet + "..."
 
-			fileToGet = command[1]
+			fileToGet = command[1]	
 			request = "get:" + fileToGet
-			sendFlag = send(sock, request)
+			sendFlag = SendData(sock, request)
 			if (sendFlag != 0):
 				DieWithUserMessage("GET request failed", \
 					"Program failed to create proper request")
@@ -81,12 +83,12 @@ while True:
 			# first recieved data would be number of data chunks to receive
 			# receive as string and convert to integer
 			recvFlag, recvData = ReceiveData(sock)
-			if (recvFlag == 1):
-				DieWithUserMessage("ReceiveData()", \
-					"nothing received even though there's something to receive")
-			elif (recvFlag != 0):
-				DieWithUserMessage("ReceiveData()", \
-					"unknown error")
+			# if (recvFlag == 1):
+			# 	DieWithUserMessage("ReceiveData()", \
+			# 		"nothing received even though there's something to receive")
+			# elif (recvFlag != 0):
+			# 	DieWithUserMessage("ReceiveData()", \
+			# 		"unknown error")
 			numOfChunks = int(recvData)
 
 			# Write binary data to a file
@@ -102,8 +104,8 @@ while True:
 							"unknown error")
 					# recvData must be binary data. There's no check for this.
 					f.seek(0, 2) # go to eof: relative position 0 from eof(2)
-			    	f.write(recvData)
-			    f.close()
+					f.write(recvData)
+				f.close()
 
 	elif (command[0].lower() == "post"):
 		""" Uploads file F to the server (if F exists in the same directory
@@ -118,14 +120,14 @@ while True:
 			print "Such file doesn't exist"
 		else:
 			request = "post:" + fileToSend
-			sendFlag = send(sock, request)
+			sendFlag = SendData(sock, request)
 			if (sendFlag != 0):
 				DieWithUserMessage("POST request failed", \
 					"Program failed to create proper request")
 
 			# Get file size and count number of data to send
 			fileSize = os.path.getsize(fileToSend)
-			numOfChunks = ceil(fileSize / DATA_CHUNK_SIZE)
+			numOfChunks = int(ceil(fileSize / DATA_CHUNK_SIZE))
 			# Send number of chunks first
 			sendFlag = SendData(sock, str(numOfChunks))
 			if (sendFlag != 0):
@@ -134,9 +136,9 @@ while True:
 			# Split file and send data
 			with open(fileToSend, "rb") as f:
 				for i in range(numOfChunks):
-				    dataChunk = f.read(DATA_CHUNK_SIZE)
-				    if dataChunk:
-				        sendFlag = SendData(sock, dataChunk)
+					dataChunk = f.read(DATA_CHUNK_SIZE)
+					if dataChunk:
+						sendFlag = SendData(sock, dataChunk)
 						if (sendFlag != 0):
 							DieWithUserMessage("SendData()", \
 								"Program failed to send data properly")
@@ -152,3 +154,4 @@ while True:
 		elif (len(command) > 1):
 			print "Wront command: Try again."
 		sock.close() # close connection with server
+		connection = False

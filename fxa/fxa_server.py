@@ -16,24 +16,21 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 import rxp_server
 
-# import rxp.rxp_socket # Import RxP Protocol
+import rxp.rxp_socket # Import RxP Protocol
 from fxa_utility import *
 
 class ClientHandlerThread(threading.Thread):
-    def __init__(self, target, *args):
-        self._target = target
-        self._args = args
-        threading.Thread.__init__(self)
+	def __init__(self, target, *args):
+		self._target = target
+		self._args = args
+		threading.Thread.__init__(self)
  
-    def run(self):
-        self._target(*self._args)
+	def run(self):
+		self._target(*self._args)
 
 
 class ServerThread(threading.Thread):
 	_connected = False
-	_portNumber = None
-	_netemuAddress = None
-	_netemuPort = None
 	_MAXPENDING = 5 # Maximum outstanding connection requests
 
 	# Python Cookbook, 2nd Edition; 9.2 Terminating a Thread
@@ -43,32 +40,25 @@ class ServerThread(threading.Thread):
 		self._stopevent = threading.Event()
 		self._sleepperiod = 1.0
 		self._portNumber = port
-		self._netemuAddress = netemuAddr
-		self._netemuPort = netemuPort
+		self._destAddress = netemuAddr, netemuPort
 		threading.Thread.__init__(self, name=name)
 
 	def run(self):
 		""" Create socket """
 		sock = socket()
-		if sock < 0:
-			DieWithUserMessage('socket()', 'failed to create a socket')
-				
-		""" Convert given string address into network address """
-		rtnVal, networkAddr = sock.inet_pton(self._netemuAddress)
-		if (rtnVal == 0):
-			DieWithUserMessage("inet_pton() failed", "invalid address string")
-		elif (rtnVal < 0):
-			DieWithUserMessage("inet_pton() failed", "failed to convert address")
-		networkPort = sock.htons(self._netemuPort)
+		# if sock < 0:
+		# 	DieWithUserMessage('socket()', 'failed to create a socket')
 
 		""" Bind to given port number """
-		if (sock.bind(self_portNumber) < 0):
-			DieWithUserMessage("bind()", "failed to bind to given port number")
+		sock.bind(('', self._portNumber))
+		# if (sock.bind(('', self._portNumber)) < 0):
+		# 	DieWithUserMessage("bind()", "failed to bind to given port number")
 
 		""" Mark the socket so it will listen for incoming connections """
-		if (sock.listen(self._MAXPENDING) < 0):
-			DieWithUserMessage("listen()", \
-				"failed to set socket to listen incoming connections")
+		sock.listen()
+		# if (sock.listen(self._MAXPENDING) < 0):
+		# 	DieWithUserMessage("listen()", \
+		# 		"failed to set socket to listen incoming connections")
 
 		""" Main Server Loop """
 		while not self._stopevent.isSet():
@@ -106,11 +96,11 @@ if len(sys.argv) != 4:
 
 
 if __name__ == '__main__':
-	portNumber = sys.argv[1]
-	netemuAddress = sys.argv[2]
-	netemuPort = sys.argv[3]
+	portNumber = eval(sys.argv[1])
+	netemuHost = eval(sys.argv[2])
+	netemuPort = eval(sys.argv[3])
 	# Create Server Thread Object and execute it
-	serverthread = ServerThread(portNumber, netemuAddress, etemuPort)
+	serverthread = ServerThread(portNumber, netemuHost, etemuPort)
 	serverthread.start()
 	""" Get user command from this point """
 	# connection = False # connection is yet established

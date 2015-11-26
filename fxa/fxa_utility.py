@@ -14,6 +14,9 @@ import sys
 # import os.path
 # sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
+from math import ceil
+
+DATA_CHUNK_SIZE = 500
 
 def DieWithUserMessage(msg, detail):
 	""" Die with user message """
@@ -25,11 +28,11 @@ def SendData(sock, dataToSend):
 	""" Send data using socket """
 	if dataToSend:
 		bytesSent = sock.send(dataToSend)
-		if (bytesSent < 0):
-			DieWithUserMessage("send()", "failed");
-		elif (sys.getsizeof(dataToSend) != bytesSent):
-			# check if bytes sent is the same with size of given data
-			DieWithUserMessage("send()", "sent unexpected number of bytes")
+		# if (bytesSent < 0):
+		# 	DieWithUserMessage("send()", "failed");
+		# elif (sys.getsizeof(dataToSend) != bytesSent):
+		# 	# check if bytes sent is the same with size of given data
+		# 	DieWithUserMessage("send()", "sent unexpected number of bytes")
 		return 0
 	else:
 		print "SendData(): nothing to send"
@@ -56,7 +59,7 @@ def clearCurrentReadline():
 	sys.stdout.write('\x1b[2K')						 # Clear current line
 	sys.stdout.write('\x1b[1A\x1b[2K'*(text_len/cols))  # Move cursor up and clear line
 	sys.stdout.write('\x1b[0G')						 # Move to start of line
-	
+
 
 def HandleFxACleint(sock):
 	""" 
@@ -88,7 +91,7 @@ def HandleFxACleint(sock):
 		else:
 			# Get file size and count number of data to send
 			fileSize = os.path.getsize(fileToSend)
-			numOfChunks = ceil(fileSize / DATA_CHUNK_SIZE)
+			numOfChunks = int(ceil(fileSize / DATA_CHUNK_SIZE))
 			# Send number of chunks first
 			sendFlag = SendData(sock, str(numOfChunks))
 			if (sendFlag != 0):
