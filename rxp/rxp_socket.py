@@ -64,13 +64,14 @@ class Socket:
 
 	def listen(self):
 		""" Makes server socket wait and listen to incoming connection requests """
+		print "socket.listen() called."
 		waitingTime = self._RESEND_LIMIT * 100
 		if self.srcAddr is None:
 			raise Error("Socket is not bound.")
 		while waitingTime > 0:
 			try:
 				data, address = self.recvfrom(self.recvWindow)
-				packet = self._packet(data, checkSeq=False)
+				packet = self.constructPacket(data, checkSeq=False)
 			except socket.timeout:
 				waitingTime -= 1
 				continue
@@ -86,16 +87,19 @@ class Socket:
 		ack = packet.header.fields["seqNum"] + 1
 		self.ackNum.set(ack)
 		self.destAddr = address
+		print "socket.listen() finished."
 
 	def accept(self):
 		""" Accepts incoming connection. Returns sender's address. """
+		print "socket.accept() called."
 		if self.srcAddr is None:
 			raise Error("Socket is not bound.")
 		if self.destAddr is None:
 			raise Error("No Connection.")
-		self.seqNum.set()
-		self.send("@SYNACK")
+		returnedPacket = self.send("@SYNACK")
+		self.ackNum.set(returnedPacket.header.fields["seqNum"] + 1)
 		self.status = ConnectionStatus.ESTABLISHED
+		print "socket.accept() finished."
 
 	def sendto(self, packet, address):
 		""" Write packet data and send to address """
@@ -115,21 +119,24 @@ class Socket:
 		if self.status != ConnectionStatus.ESTABLISHED:
 			FLAGS = rxp_header.Flags
 			if message == "@SYN":
+				print "sending SYN..."
 				flags = FLAGS.toBinary(("SYN",))
 				header = rxp_header.Header(
 					srcPort = self.srcAddr[1],
 					destPort = self.destAddr[1],
 					seqNum = self.seqNum.num,
 					flags = flags)
-				packet = Packet(header)
+				packet = rxp_packet.Packet(header)
 				self.seqNum.nextSeq()
 				resendLimit = self._RESEND_LIMIT
 				while resendLimit:
 					self.sendto(packet, self.destAddr)
+					print "send(@SYN): signal sent from ", self.srcAddr, "to", self.destAddr
 					try:
 						data, address = self.recvfrom(self.recvWindow)
 						packet = self.constructPacket(data=data, address=address, checkSeq=False)
 					except socket.timeout:
+						print "ERROR: socket.timeout"
 						resendLimit -= 1
 						continue
 					except Error as err:
@@ -138,7 +145,7 @@ class Socket:
 					else:
 						if packet.checkFlags(("SYN", "ACK"), exclusive=True):
 							break
-				if resendsRemaining <= 0:
+				if resendLimit <= 0:
 					raise Error("connection_timeout")
 				return packet
 			elif message == "@SYNACK":
@@ -149,11 +156,12 @@ class Socket:
 					seqNum = self.seqNum.num,
 					ackNum = self.ackNum.num,
 					flags = flags)
-				packet = Packet(header)
+				packet = rxp_packet.Packet(header)
 				self.seqNum.nextSeq()
 				resendLimit = self._RESEND_LIMIT
 				while resendLimit:
 					self.sendto(packet, self.destAddr)
+					print "send(@SYNACK): signal sent from ", self.srcAddr, "to", self.destAddr
 					try:
 						data, address = self.recvfrom(self.recvWindow)
 						packet = self.constructPacket(data=data, address=address, checkSeq=False)
@@ -168,6 +176,7 @@ class Socket:
 								resendLimit = self._RESEND_LIMIT
 							elif packet.checkFlags(("ACK",), exclusive=True):
 								break
+				return packet
 			elif message == "@ACK":
 				flags = FLAGS.toBinary(("ACK",))
 				header = rxp_header.Header(
@@ -175,14 +184,15 @@ class Socket:
 					destPort = self.destAddr[1],
 					ackNum = self.ackNum.num,
 					flags = flags)
-				self.sendto(Packet(header), self.destAddr)
+				self.sendto(rxp_packet.Packet(header), self.destAddr)
+				print "send(@ACK): signal sent from ", self.srcAddr, "to", self.destAddr
 		else:
 			dataQ = deque()
 			packetQ = deque()
 			sentQ = deque()
 			prevSeqNum = self.seqNum.num
 
-			dataLength = rxp_header.Packet().dataLength
+			dataLength = rxp_packet.Packet().dataLength
 			for i in range(0, len(message), dataLength):
 				if i + dataLength > len(message):
 					dataQ.append(message[i:])
@@ -300,7 +310,7 @@ class Socket:
 			destPort = self.destAddr[1],
 			seqNum = self.seqNum,
 			flags = flags)
-		packet = Packet(header)
+		packet = rxp_packet.Packet(header)
 		self.seqNum.nextSeq()
 
 		waitLimit = self._RESEND_LIMIT
@@ -322,7 +332,7 @@ class Socket:
 				else: waitLimit -= 1
 
 	def constructPacket(self, data, address=None, checkSeq=True, checkAck=False):
-		packet = rxp_header.Packet.unBinary(data, toString=self._ACCEPTS_ASCII)
+		packet = rxp_packet.Packet.unBinary(data, toString=self._ACCEPTS_ASCII)
 		if packet.verifyChecksum() == False:
 			raise Error("invalid_checksum")
 		if checkSeq: 

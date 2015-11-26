@@ -58,9 +58,10 @@ class Packet:
 	@staticmethod
 	def unBinary(packetBytes, toString=False):
 		""" Converts a binary string to Packet header and data """
-		headerSize = rxp_header.Header().headerLength
+		HEADER = rxp_header.Header()
+		headerSize = HEADER.headerLength
 		packet = Packet()
-		packet.header = rxp_header.Header.unBinary(packetBytes[0:headerSize])
+		packet.header = HEADER.unBinary(packetBytes[0:headerSize])
 		if toString:
 			packet.data = packetBytes[headerSize:].decode(encoding='UTF-8')
 		else: packet.data = packetBytes[headerSize:]
@@ -71,8 +72,6 @@ class Packet:
 		Compares checksum value from header field and a newly calculated checksum
 		"""
 		packetChecksum = self.header.fields["checksum"]
-		print "verifyChecksum:self.header.fields[\"checksum\"]:", packetChecksum
-		print "verifyChecksum:self.checksum:", self.checksum()
 		return packetChecksum == self.checksum()
 
 	def checkFlags(self, targetFlags, exclusive=False):

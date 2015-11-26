@@ -60,6 +60,8 @@ class Header:
 	@staticmethod
 	def unBinary(headerBytes):
 		""" Converts the Binary String to Header Fields """
+		if not isinstance(headerBytes, bytearray):
+			headerBytes = bytearray(headerBytes)
 		header = Header()
 		base = 0
 		for field in header._fieldsizes.iteritems():
