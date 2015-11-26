@@ -97,8 +97,7 @@ class Socket:
 		if self.destAddr is None:
 			raise Error("No Connection.")
 		returnedPacket = self.send("@SYNACK")
-		print "ACKNUM:", returnedPacket.header.fields["seqNum"]
-		self.ackNum.set(returnedPacket.header.fields["seqNum"] + 1)
+		self.ackNum.set(returnedPacket.header.fields["seqNum"])
 		self.status = ConnectionStatus.ESTABLISHED
 		print "socket.accept() finished."
 
@@ -183,6 +182,7 @@ class Socket:
 				header = rxp_header.Header(
 					srcPort = self.srcAddr[1],
 					destPort = self.destAddr[1],
+					seqNum = self.seqNum.num,
 					ackNum = self.ackNum.num,
 					flags = flags)
 				packet = rxp_packet.Packet(header)
