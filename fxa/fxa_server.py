@@ -19,19 +19,14 @@ import rxp_server
 # import rxp.rxp_socket # Import RxP Protocol
 from fxa_utility import *
 
-DATA_CHUNK_SIZE = 500
-
-def clearCurrentReadline():
-	# http://stackoverflow.com/questions/2082387/reading-input-from-raw-input-without-having-the-prompt-overwritten-by-other-th
-	# Next line said to be reasonably portable for various Unixes
-	(rows,cols) = struct.unpack('hh', fcntl.ioctl(sys.stdout, termios.TIOCGWINSZ,'1234'))
-
-	text_len = len(readline.get_line_buffer())+2
-
-	# ANSI escape sequences (All VT100 except ESC[0G)
-	sys.stdout.write('\x1b[2K')						 # Clear current line
-	sys.stdout.write('\x1b[1A\x1b[2K'*(text_len/cols))  # Move cursor up and clear line
-	sys.stdout.write('\x1b[0G')						 # Move to start of line
+class ClientHandlerThread(threading.Thread):
+    def __init__(self, target, *args):
+        self._target = target
+        self._args = args
+        threading.Thread.__init__(self)
+ 
+    def run(self):
+        self._target(*self._args)
 
 
 class ServerThread(threading.Thread):
@@ -47,11 +42,10 @@ class ServerThread(threading.Thread):
 		""" constructor, setting initial variables """
 		self._stopevent = threading.Event()
 		self._sleepperiod = 1.0
-		threading.Thread.__init__(self, name=name)
 		self._portNumber = port
 		self._netemuAddress = netemuAddr
 		self._netemuPort = netemuPort
-
+		threading.Thread.__init__(self, name=name)
 
 	def run(self):
 		""" Create socket """
@@ -86,14 +80,10 @@ class ServerThread(threading.Thread):
 					"socket failed to accept incoming connection")
 
 			""" Handle accepted client """	
-			HandleFxAClient(clntSock)
+			ClientHandlerThread(HandleFxAClient, clntSock).start()
 
-			clearCurrentReadline()
-			sys.stdout.write('> ' + readline.get_line_buffer())
-			sys.stdout.flush()
-			self._stopevent.wait(self._sleepperiod)
+		""" When server is terminated by user command """
 		print "%s ends" % (self.getName(),)
-
 
 	def join(self, timeout=None):
 		""" Stop the thread and wait for it to end. """
@@ -123,16 +113,16 @@ if __name__ == '__main__':
 	serverthread = ServerThread(portNumber, netemuAddress, etemuPort)
 	serverthread.start()
 	""" Get user command from this point """
-	connection = False # connection is yet established
+	# connection = False # connection is yet established
 	while True:
-		command = raw_input("Type command and press enter: ")
+		command = raw_input("server command > ")
 		command = command.split(None) # split given string with whitespace
 
 		if (command[0].lower() == "terminate"):
 			""" Terminates gracefully from the FxA-server """
-			if (connection != True):
-				print "Establish connection before using this command."
-			elif (len(command) > 1):
+			# if (connection != True):
+			# 	print "Establish connection before using this command."
+			if (len(command) > 1):
 				print "Wront command: Try again."
 			serverthread.join() # terminate server thread and close server
 			sys.exit()
