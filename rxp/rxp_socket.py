@@ -97,6 +97,7 @@ class Socket:
 		if self.destAddr is None:
 			raise Error("No Connection.")
 		returnedPacket = self.send("@SYNACK")
+		print "ACKNUM:", returnedPacket.header.fields["seqNum"]
 		self.ackNum.set(returnedPacket.header.fields["seqNum"] + 1)
 		self.status = ConnectionStatus.ESTABLISHED
 		print "socket.accept() finished."
@@ -119,7 +120,6 @@ class Socket:
 		if self.status != ConnectionStatus.ESTABLISHED:
 			FLAGS = rxp_header.Flags
 			if message == "@SYN":
-				print "sending SYN..."
 				flags = FLAGS.toBinary(("SYN",))
 				header = rxp_header.Header(
 					srcPort = self.srcAddr[1],
@@ -136,7 +136,6 @@ class Socket:
 						data, address = self.recvfrom(self.recvWindow)
 						packet = self.constructPacket(data=data, address=address, checkSeq=False)
 					except socket.timeout:
-						print "ERROR: socket.timeout"
 						resendLimit -= 1
 						continue
 					except Error as err:
@@ -171,11 +170,13 @@ class Socket:
 					except Error as err:
 						if err.message == "invalid_checksum":
 							continue
-						else:
-							if packet.checkFlags(("SYN",), exclusive=True):
-								resendLimit = self._RESEND_LIMIT
-							elif packet.checkFlags(("ACK",), exclusive=True):
-								break
+					else:
+						if packet.checkFlags(("SYN",), exclusive=True):
+							resendLimit = self._RESEND_LIMIT
+						elif packet.checkFlags(("ACK",), exclusive=True):
+							break
+				if resendLimit <= 0:
+					raise Error("connection_timeout")
 				return packet
 			elif message == "@ACK":
 				flags = FLAGS.toBinary(("ACK",))
@@ -184,7 +185,8 @@ class Socket:
 					destPort = self.destAddr[1],
 					ackNum = self.ackNum.num,
 					flags = flags)
-				self.sendto(rxp_packet.Packet(header), self.destAddr)
+				packet = rxp_packet.Packet(header)
+				self.sendto(packet, self.destAddr)
 				print "send(@ACK): signal sent from ", self.srcAddr, "to", self.destAddr
 		else:
 			dataQ = deque()
@@ -382,7 +384,6 @@ class SequenceNumber:
 class ConnectionStatus:
 	""" Enum to describe the status of socket connection """
 	NONE = "none"
-	HANDSHAKING = "handshaking"
 	ESTABLISHED = "established"
 
 class Error(Exception):
