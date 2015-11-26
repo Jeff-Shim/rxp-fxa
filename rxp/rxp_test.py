@@ -203,10 +203,11 @@ def testSocketConnect(clientAddr, serverAddr, netAddr, timeout=3):
 
 	assertions = []
 
-	assertions.append(client.status == ConnectionStatus.ESTABLISHED)
-	assertions.append(server.status == ConnectionStatus.ESTABLISHED)
+	assertions.append(client.status == rxp_socket.ConnectionStatus.ESTABLISHED)
+	assertions.append(server.status == rxp_socket.ConnectionStatus.ESTABLISHED)
 	assertions.append(client.ackNum.num == server.seqNum.num)
 	assertions.append(client.seqNum.num == server.ackNum.num)
+	print assertions
 
 	return all(assertions)
 
