@@ -89,6 +89,7 @@ class Packet:
 					flags in packet.
 		"""
 		flags = rxp_header.Flags().unBinary(self.header.fields["flags"])
+		# print str(flags), "vs.", str(targetFlags) # DEBUG
 		validFlags = True
 		if exclusive and len(flags) != len(targetFlags):
 			validFlags = False

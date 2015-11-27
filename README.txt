@@ -9,13 +9,19 @@ Due Nov. 25, 2015
 
 Files Submitted (Names & Description)
 - rxp/rxp_socket.py : Contains all logic for creating and manipulating RxP Socket
-- rxp/rxp_server.py : Contains all logic for running RxP Server
-- rxp/rxp_client.py : Contains all logic for running RxP Client
 - rxp/rxp_header.py : Header object for a single packet. Prepended to packet object
 - rxp/rxp_packet.py : A single packet object
 
 Instructions for Compiling & Running Application
-1. 
+1. Run NetEmu: "$ python NetEmu.py 5000"
+2. Start the server: "$ python fxa/fxa_server.py 8081 127.0.0.1 5000"
+	where 8081 is the source port (must be odd),
+	      127.0.0.1 is the source address,
+	      5000 is the destination port (same as NetEmu port)
+3. Start the client: "$ python fxa/fxa_client.py 8080 127.0.0.1 5000"
+	where 8080 is the source port (must be even and -1 from server port)
+	      127.0.0.1 is the source address,
+	      5000 is the destination port (same as NetEmu port)
 
 Protocol and API Description
  << RxP >>
@@ -27,8 +33,6 @@ Protocol and API Description
 - socket.send(): Used to either send handshake signals or send datagrams.
 - socket.recv(): Used to either recv handshake signals or recv datagrams.
 - socket.close(): Terminates the connection.
-
- << FxA >>
 
 Known Bugs or Limitations
 - 

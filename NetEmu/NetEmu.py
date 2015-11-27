@@ -38,18 +38,19 @@ def ReceivePacket():
             data=packet[0]
             if not data: break
 
-            print "Packet received from:", packet[1]
+            debugStr = "Packet received from: " + str(packet[1])
 
             if (randint(1,100) < corruptProb): 
-                print "Corrupting this packet"
+                debugStr += "\tCorrupting this packet"
                 packet=(corrupt(packet[0]),packet[1])  # corrupt
             elif (randint(1,100) < dupProb): 
-                print "Duplicating this packet"
+                debugStr += "\tDuplicating this packet"
                 queue.put(packet) # duplicate by adding twice to queue
             if (randint(1,100) < dropProb):
-                print "Dropping this packet"
+                debugStr += "\tDropping this packet"
             else: 
                 queue.put(packet)
+            print debugStr
         except socket.error,msg:
             continue
 
