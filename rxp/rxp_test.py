@@ -217,7 +217,12 @@ def testSocketClose(clientAddr, serverAddr, netAddr, timeout=3):
 			server.listen()
 			server.accept()
 		except Exception as e:
-			logging.info("server " + str(e))
+			logging.info("runserver:server:" + str(e))
+	def expectClose(server):
+		try:
+			server.recv()
+		except Exception as e:
+			logging.info("expectClose:server:" + str(e))
 
 	client = rxp_socket.Socket()
 	client.bind(clientAddr)
@@ -231,14 +236,18 @@ def testSocketClose(clientAddr, serverAddr, netAddr, timeout=3):
 	serverThread.setDaemon(True)
 	serverThread.start()
 
+	recvThread = threading.Thread(target=expectClose, args=(server,))
+	recvThread.setDaemon(True)
+	recvThread.start()
+
 	client.connect(netAddr)
 	serverThread.join()
 	client.close()
+	recvThread.join()
 
 	assertions = []
 	assertions.append(client.status == rxp_socket.ConnectionStatus.NONE)
 	assertions.append(server.status == rxp_socket.ConnectionStatus.NONE)
-	print assertions
 	return all(assertions)
 
 def testSocketSendRcv(clientAddr, serverAddr, netAddr, timeout=3, message="Hello World!"):
