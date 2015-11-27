@@ -94,7 +94,7 @@ while True:
 			numOfChunks = int(recvData)
 			print "fxa_client: GET -> will receive " + str(numOfChunks) + " of data chunks" # DEBUG 
 
-			directory = "client-recieved"
+			directory = "client-received"
 			if not os.path.exists(directory):
 				os.makedirs(directory)
 

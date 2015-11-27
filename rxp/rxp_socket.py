@@ -81,7 +81,7 @@ class Socket:
 			else:
 				if packet.checkFlags(("SYN",), exclusive=True):
 					break
-				else: waitLimit -= 1
+				else: waitingTime -= 1
 		if waitingTime == 0:
 			raise Error("connection_timeout")
 		ack = packet.header.fields["seqNum"] + 1
@@ -219,7 +219,7 @@ class Socket:
 							self.status = ConnectionStatus.NONE
 							self._socket.close()
 							break
-						else: waitLimit -= 1
+						else: resendLimit -= 1
 		else:
 			""" 
 			When connection is existing, send given data to 

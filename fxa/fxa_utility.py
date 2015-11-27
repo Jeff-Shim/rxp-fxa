@@ -10,13 +10,23 @@ FxA Utility
 	This utility functions work in both FxA server and client.
 """
 
-import sys
+import sys, readline
 import os.path
 # sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from math import ceil
 
 DATA_CHUNK_SIZE = 128000 # 128 kB
+
+def printCommandIndicater():
+	""" Print user command again """ 
+	last_line = readline.get_line_buffer()
+	if last_line.endswith('\n'):
+		sys.stdout.write('server command > ')
+	else:
+		sys.stdout.write('server command > ' + readline.get_line_buffer())
+	sys.stdout.flush()
+
 
 def DieWithUserMessage(msg, detail):
 	""" Die with user message """
@@ -120,7 +130,7 @@ def HandleFxAClient(sock):
 				"unknown error")
 		numOfChunks = int(recvData)
 
-		directory = "server-recieved"
+		directory = "server-received"
 		if not os.path.exists(directory):
 			os.makedirs(directory)
 

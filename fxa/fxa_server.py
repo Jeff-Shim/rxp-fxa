@@ -31,19 +31,23 @@ def clearCurrentReadline():
 
 
 class ClientHandlerThread(threading.Thread):
-	def __init__(self, target, *args):
+	def __init__(self, target, parentThread, *args):
 		self._stopevent = threading.Event()
 		self._target = target
 		self._args = args
+		self._parent = parentThread
 		threading.Thread.__init__(self)
  
 	def run(self):
 		self._target(*self._args)
 
 	def join(self, timeout=None):
-		""" Stop the thread and wait for it to end. """
-		self._stopevent.set()
-		threading.Thread.join(self, timeout)
+		try:
+			""" Stop the thread and wait for it to end. """
+			self._stopevent.set()
+			threading.Thread.join(self, timeout)
+		except (KeyboardInterrupt, SystemExit):
+			raise
 
 
 class ServerThread(threading.Thread):
@@ -90,7 +94,7 @@ class ServerThread(threading.Thread):
 			clearCurrentReadline()
 
 			""" Handle accepted client """	
-			clientThread = ClientHandlerThread(HandleFxAClient, sock)
+			clientThread = ClientHandlerThread(HandleFxAClient, self, sock)
 			clientThread.start()
 			clientThread.join()
 
@@ -106,9 +110,13 @@ class ServerThread(threading.Thread):
 		print "%s ends" % (self.getName(),)
 
 	def join(self, timeout=None):
-		""" Stop the thread and wait for it to end. """
-		self._stopevent.set()
-		threading.Thread.join(self, timeout)
+		try:
+			""" Stop the thread and wait for it to end. """
+			sys.exit()
+			self._stopevent.set()
+			threading.Thread.join(self, timeout)
+		except (KeyboardInterrupt, SystemExit):
+			raise
 
 	def setConnected(self, value):
 		self._connected = value
@@ -136,6 +144,9 @@ if __name__ == '__main__':
 	# connection = False # connection is yet established
 	while True:
 		command = raw_input("server command > ")
+
+		print "fxa_server: Command received -> " + str(command) # DEBUG
+
 		command = command.split(None) # split given string with whitespace
 
 		if (len(command) < 1):
@@ -147,5 +158,7 @@ if __name__ == '__main__':
 			# 	print "Establish connection before using this command."
 			if (len(command) > 1):
 				print "Wrong command: Try again."
-			serverthread.join() # terminate server thread and close server
-			sys.exit()
+			else: 
+				serverthread.join() # terminate server thread and close server
+				print "fxa_server exits..." # DEBUG
+				sys.exit()
