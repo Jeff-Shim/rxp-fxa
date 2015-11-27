@@ -251,7 +251,6 @@ def testSocketClose(clientAddr, serverAddr, netAddr, timeout=3):
 	return all(assertions)
 
 def testSocketSendRcv(clientAddr, serverAddr, netAddr, timeout=3, message="Hello World!"):
-
 	global servermsg
 	servermsg = ""
 
@@ -283,21 +282,16 @@ def testSocketSendRcv(clientAddr, serverAddr, netAddr, timeout=3, message="Hello
 	serverThread.start()
 
 	client.connect(netAddr)
-	if client.status == rxp_socket.ConnectionStatus.ESTABLISHED:
-		print "CLIENT CONNECTION ESTABLISHED."
-	else: print "CLIENT CONNECTION UNSUCCESSFUL."
 	client.send(message)
-	print "CLIENT: Message Sent:", message
 
 	serverThread.join()
 
 	logging.info("client msg: " + str(message))
 	logging.info("server msg: " + str(servermsg))
 
-	return message == servermsg
+	return message == servermsg[1]
 
 def testSocketTimeout(clientAddr, serverAddr, netAddr, timeout=3):
-	
 	assertions = []
 
 	client = rxp_socket.Socket()
@@ -332,45 +326,6 @@ def testSocketTimeout(clientAddr, serverAddr, netAddr, timeout=3):
 
 	return all(assertions)
 
-def testRequestSendPermission(clientAddr, serverAddr, netAddr, timeout=3):
-
-	message = "Hello World!"
-	servermsg = " right back at ya"
-	expectedResult = message + servermsg
-
-	client = rxp_socket.Socket()
-	client.timeout = timeout
-	client.bind(clientAddr)
-	client.acceptStrings = True
-	server = rxp_socket.Socket()
-	server.timeout = timeout
-	server.bind(serverAddr)
-	server.acceptStrings = True
-
-	def runserver(server):
-		server.listen()
-		server.accept()
-		msg = server.recv()
-		server.send(msg + servermsg)
-		msg2 = server.recv()
-
-	serverThread = threading.Thread(target=runserver, args=(server,))
-	serverThread.daemon = True
-	serverThread.start()
-
-	client.connect(netAddr)
-	client.send(message)
-	result = client.recv()
-	client.send(message)
-
-	serverThread.join()
-
-	logging.info("expected: " + expectedResult)
-	logging.info("result: " + result)
-
-	return result == expectedResult
-
-
 """
 RUN TEST
 """
@@ -396,7 +351,6 @@ tester.add(testSocketConnect, C_ADDR, S_ADDR, N_ADDR, 0.01) # 5
 tester.add(testSocketClose, C_ADDR, S_ADDR, N_ADDR, 0.01) # 6
 tester.add(testSocketSendRcv, C_ADDR, S_ADDR, N_ADDR, 0.01) # 7
 tester.add(testSocketTimeout, C_ADDR, S_ADDR, N_ADDR, 0.01) # 8
-tester.add(testRequestSendPermission, C_ADDR, S_ADDR, N_ADDR, 0.01) # 9
 
 # run tests
-tester.run(index=6)
+tester.run(index=5)

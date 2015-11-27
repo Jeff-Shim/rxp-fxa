@@ -22,8 +22,8 @@ class Socket:
 	[e.g. socket(AF_UNSPEC, SOCK_DGRAM, IPPROTO_UDP)]
 	"""
 
-	_TIMEOUT = 1 # 1 seconds
-	_RESEND_LIMIT = 100
+	_TIMEOUT = 0.1 # 1 seconds
+	_RESEND_LIMIT = 500
 	_SEND_WINDOW = 1
 	_ACCEPTS_ASCII = False
 
@@ -88,7 +88,6 @@ class Socket:
 		self.ackNum.set(ack)
 		self.destAddr = address
 
-
 	def accept(self):
 		""" Accepts incoming connection. Returns sender's address. """
 		if self.srcAddr is None:
@@ -98,7 +97,7 @@ class Socket:
 		returnedPacket = self.send("@SYNACK", sendFlagOnly=True)
 		self.ackNum.set(returnedPacket.header.fields["seqNum"])
 		self.status = ConnectionStatus.ESTABLISHED
-		# print "Connection established with client: " + str(self.destAddr)
+		print "Connection established with client: " + str(self.destAddr)
 
 	def sendto(self, packet, address):
 		""" Write packet data and send to address """
@@ -131,7 +130,7 @@ class Socket:
 				resendLimit = self._RESEND_LIMIT
 				while resendLimit:
 					self.sendto(packet, self.destAddr)
-					# print "send(@SYN): signal sent from ", self.srcAddr, "to", self.destAddr # DEBUG
+					print "send(@SYN): signal sent from ", self.srcAddr, "to", self.destAddr # DEBUG
 					try:
 						data, address = self.recvfrom(self.recvWindow)
 						packet = self.constructPacket(data=data, address=address, checkSeq=False)
@@ -143,7 +142,9 @@ class Socket:
 							continue
 					else:
 						if packet.checkFlags(("SYN", "ACK"), exclusive=True):
+							print "send(@SYN): SYNACK received."
 							break
+						# else: resendLimit -= 1
 				if resendLimit <= 0:
 					raise Error("connection_timeout")
 				return packet
@@ -161,10 +162,14 @@ class Socket:
 				resendLimit = self._RESEND_LIMIT
 				while resendLimit:
 					self.sendto(packet, self.destAddr)
-					# print "send(@SYNACK): signal sent from ", self.srcAddr, "to", self.destAddr # DEBUG
+					print "send(@SYNACK): signal sent from ", self.srcAddr, "to", self.destAddr # DEBUG
 					try:
 						data, address = self.recvfrom(self.recvWindow)
 						packet = self.constructPacket(data=data, address=address, checkSeq=False)
+						if data:
+							print "Received Data from", address
+						else: print "send(@SYNACK):DID NOT RECEIVE ANY DATA"
+						print "Received Packet:", packet.header.fields
 					except socket.timeout:
 						resendLimit -= 1
 						continue
@@ -173,9 +178,18 @@ class Socket:
 							continue
 					else:
 						if packet.checkFlags(("SYN",), exclusive=True):
+							print "send(@SYNACK): SYN received."
 							resendLimit = self._RESEND_LIMIT
+						# else: 
+						# 	print "\nsend(@SYNACK): breaking out of sending.\n"
+						# 	break
 						elif packet.checkFlags(("ACK",), exclusive=True):
+							print "send(@SYNACK): ACK received."
 							break
+						# elif packet.checkFlags(("NM",), exclusive=False):
+						# 	break
+						# elif packet.checkFlags(("ACK", "NM"), exclusive=False):
+						# 	break
 				if resendLimit <= 0:
 					raise Error("connection_timeout")
 				return packet
@@ -190,7 +204,7 @@ class Socket:
 					flags = flags)
 				packet = rxp_packet.Packet(header)
 				self.sendto(packet, self.destAddr)
-				# print "send(@ACK): signal sent from ", self.srcAddr, "to", self.destAddr # DEBUG
+				print "send(@ACK): signal sent from ", self.srcAddr, "to", self.destAddr # DEBUG
 			elif message == "@FIN":
 				flags = FLAGS.toBinary(("FIN",))
 				header = rxp_header.Header(
@@ -228,7 +242,6 @@ class Socket:
 			packetQ = deque()
 			sentQ = deque()
 			prevSeqNum = int(self.seqNum.num)
-
 			headerSize = rxp_header.Header().headerLength
 			dataLength = self.recvWindow - headerSize
 			for i in range(0, len(message), dataLength):
@@ -302,7 +315,7 @@ class Socket:
 					if isinstance(packet, int):
 						# print "socket.send(): received answer is integer." # DEBUG
 						while packet < 0:
-							packetQ.appendleft(sendQ.pop())
+							packetQ.appendleft(sentQ.pop())
 							packet += 1
 					elif packet.checkFlags(("SYN","ACK"), exclusive=True):
 						# print "socket.send(): received SYN, ACK in send()" # DEBUG
@@ -377,8 +390,7 @@ class Socket:
 						""" First chunk of message arrived """
 						if self._ACCEPTS_ASCII:
 							message = ""
-						else: 
-							message = bytes()
+						else: message = bytes()
 
 					""" Append received data to message """
 					message += packet.data
@@ -387,7 +399,6 @@ class Socket:
 						""" Return message if last chunk is received """
 						return True, message
 				
-
 		""" Return false when wait time exceeds limit """
 		return False, "" 
 
