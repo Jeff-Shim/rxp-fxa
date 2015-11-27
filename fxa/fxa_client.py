@@ -92,7 +92,7 @@ while True:
 					"unknown error")
 			numOfChunks = int(recvData)
 
-			directory = "client-recieved"
+			directory = "client-received"
 			if not os.path.exists(directory):
 				os.makedirs(directory)
 
@@ -132,7 +132,7 @@ while True:
 
 			# Get file size and count number of data to send
 			fileSize = os.path.getsize(fileToSend)
-			numOfChunks = int(ceil(fileSize / DATA_CHUNK_SIZE))
+			numOfChunks = int(ceil(fileSize / float(DATA_CHUNK_SIZE)))
 			# Send number of chunks first
 			sendFlag = SendData(sock, str(numOfChunks))
 			if (sendFlag != 0):

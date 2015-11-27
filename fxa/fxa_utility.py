@@ -84,7 +84,7 @@ def HandleFxAClient(sock):
 			print "Sending " + fileToSend + "..."
 			# Get file size and count number of data to send
 			fileSize = os.path.getsize(fileToSend)
-			numOfChunks = int(ceil(fileSize / DATA_CHUNK_SIZE))
+			numOfChunks = int(ceil(fileSize / float(DATA_CHUNK_SIZE)))
 			# Send number of chunks first
 			sendFlag = SendData(sock, str(numOfChunks))
 			if (sendFlag != 0):
