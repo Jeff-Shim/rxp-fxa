@@ -99,7 +99,8 @@ class ServerThread(threading.Thread):
 
 		""" Main Server Loop """
 		while not self._stopevent.isSet():
-			
+			if sock.status == ConnectionStatus.NONE:
+				break
 			# if (clntSock < 0):
 			# 	DieWithUserMessage("accept() failed", \
 			# 		"socket failed to accept incoming connection")
@@ -116,7 +117,7 @@ class ServerThread(threading.Thread):
 			printCommandIndicater()
 
 		""" When server is terminated by user command """
-		print "%s ends" % (self.getName(),)
+		runServer()
 
 	def join(self, timeout=None):
 		try:
@@ -140,34 +141,34 @@ if len(sys.argv) != 4:
 		+ ' should bind to (ddd number).\n' \
 		+ 'A: the IP address of NetEmu\n' \
 		+ 'P: the UDP port number of NetEmu')
+def runServer():
+	if __name__ == '__main__':
+		portNumber = eval(sys.argv[1])
+		netemuHost = sys.argv[2]
+		netemuPort = eval(sys.argv[3])
+		# Create Server Thread Object and execute it
+		serverthread = ServerThread(portNumber, netemuHost, netemuPort)
+		serverthread.start()
+		""" Get user command from this point """
+		# connection = False # connection is yet established
+		while True:
+			command = raw_input("server command > ")
 
+			print "fxa_server: Command received -> " + str(command) # DEBUG
 
-if __name__ == '__main__':
-	portNumber = eval(sys.argv[1])
-	netemuHost = sys.argv[2]
-	netemuPort = eval(sys.argv[3])
-	# Create Server Thread Object and execute it
-	serverthread = ServerThread(portNumber, netemuHost, netemuPort)
-	serverthread.start()
-	""" Get user command from this point """
-	# connection = False # connection is yet established
-	while True:
-		command = raw_input("server command > ")
+			command = command.split(None) # split given string with whitespace
 
-		print "fxa_server: Command received -> " + str(command) # DEBUG
+			if (len(command) < 1):
+				continue
 
-		command = command.split(None) # split given string with whitespace
-
-		if (len(command) < 1):
-			continue
-
-		if (command[0].lower() == "terminate"):
-			""" Terminates gracefully from the FxA-server """
-			# if (connection != True):
-			# 	print "Establish connection before using this command."
-			if (len(command) > 1):
-				print "Wrong command: Try again."
-			else: 
-				serverthread.join() # terminate server thread and close server
-				print "fxa_server exits..." # DEBUG
-				sys.exit()
+			if (command[0].lower() == "terminate"):
+				""" Terminates gracefully from the FxA-server """
+				# if (connection != True):
+				# 	print "Establish connection before using this command."
+				if (len(command) > 1):
+					print "Wrong command: Try again."
+				else: 
+					serverthread.join() # terminate server thread and close server
+					print "fxa_server exits..." # DEBUG
+					sys.exit()
+runServer()

@@ -65,12 +65,11 @@ def HandleFxAClient(sock):
 
 	"""
 
-	
 	# first recieved data would be request from client
 	recvFlag, recvData = ReceiveData(sock, blocking=True)
 	if (recvFlag != True):
-		DieWithUserMessage("ReceiveData()", \
-			"unknown error")
+		dieMsg = "Connection " + str(sock.destAddr) + " Terminated."
+		DieWithUserMessage("ReceiveData()", dieMsg)
 	request = str(recvData)
 	command = request.split(':')
 	if (len(command) != 2):

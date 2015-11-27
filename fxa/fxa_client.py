@@ -58,6 +58,7 @@ while True:
 		else:
 			sock.connect(destAddress)
 			if(sock.status == ConnectionStatus.ESTABLISHED):
+				print "Connection successfully established with", destAddress
 				connection = True
 			else:
 				DieWithUserMessage("connect() failed", "connection failed")
@@ -163,3 +164,5 @@ while True:
 			print "Wrong command: Try again."
 		sock.close() # close connection with server
 		connection = False
+		print "Connection successfully disconnected with", destAddress
+		sys.exit()
