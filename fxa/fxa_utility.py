@@ -18,15 +18,6 @@ from math import ceil
 
 DATA_CHUNK_SIZE = 128000 # 128 kB
 
-def printCommandIndicater():
-	""" Print user command again """ 
-	last_line = readline.get_line_buffer()
-	if last_line.endswith('\n'):
-		sys.stdout.write('server command > ')
-	else:
-		sys.stdout.write('server command > ' + readline.get_line_buffer())
-	sys.stdout.flush()
-
 
 def DieWithUserMessage(msg, detail):
 	""" Die with user message """

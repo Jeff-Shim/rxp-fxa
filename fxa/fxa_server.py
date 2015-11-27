@@ -29,6 +29,14 @@ def clearCurrentReadline():
 	sys.stdout.write('\x1b[1A\x1b[2K'*(text_len/cols))  # Move cursor up and clear line
 	sys.stdout.write('\x1b[0G')						 # Move to start of line
 
+def printCommandIndicater():
+	""" Print user command again """ 
+	last_line = readline.get_line_buffer()
+	if last_line.endswith('\n'):
+		sys.stdout.write('server command > ')
+	else:
+		sys.stdout.write('server command > ' + readline.get_line_buffer())
+	sys.stdout.flush()
 
 class ClientHandlerThread(threading.Thread):
 	def __init__(self, target, parentThread, *args):
@@ -74,7 +82,10 @@ class ServerThread(threading.Thread):
 		sock.bind(('', self._portNumber))
 		# if (sock.bind(('', self._portNumber)) < 0):
 		# 	DieWithUserMessage("bind()", "failed to bind to given port number")
-
+		
+		""" Clear terminal line """
+		clearCurrentReadline()
+		
 		""" Mark the socket so it will listen for incoming connections """
 		sock.listen()
 		# if (sock.listen(self._MAXPENDING) < 0):
@@ -82,6 +93,9 @@ class ServerThread(threading.Thread):
 		# 		"failed to set socket to listen incoming connections")
 		""" Wait for a client to connect """
 		sock.accept()
+
+		""" Print user command again """ 
+		printCommandIndicater()
 
 		""" Main Server Loop """
 		while not self._stopevent.isSet():
@@ -99,12 +113,7 @@ class ServerThread(threading.Thread):
 			clientThread.join()
 
 			""" Print user command again """ 
-			last_line = readline.get_line_buffer()
-			if last_line.endswith('\n'):
-				sys.stdout.write('server command > ')
-			else:
-				sys.stdout.write('server command > ' + readline.get_line_buffer())
-			sys.stdout.flush()
+			printCommandIndicater()
 
 		""" When server is terminated by user command """
 		print "%s ends" % (self.getName(),)
