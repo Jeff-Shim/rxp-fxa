@@ -39,7 +39,7 @@ sock = Socket()
 # 	DieWithUserMessage('socket()', 'failed to create a socket')
 
 """ Bind to specified port """
-sock.bind(('127.0.0.1', portNumber))
+sock.bind(('', portNumber))
 
 """ Get user command from this point """
 connection = False # connection is yet established
@@ -48,6 +48,7 @@ while True:
 	command = command.split(None) # split given string with whitespaces
 
 	if (len(command) < 1):
+		print "Wrong command: Try again."
 		continue
 
 	if (command[0].lower() == "connect"):
@@ -71,7 +72,7 @@ while True:
 		"""
 		if (connection != True):
 			print "Establish connection before using this command."
-		elif (len(command) > 2):
+		elif (len(command) != 2):
 			print "Wrong command: Try again."
 		else:
 			fileToGet = command[1]	
@@ -91,6 +92,7 @@ while True:
 				DieWithUserMessage("ReceiveData()", \
 					"unknown error")
 			numOfChunks = int(recvData)
+			print "fxa_client: GET -> will receive " + str(numOfChunks) + " of data chunks" # DEBUG 
 
 			directory = "client-recieved"
 			if not os.path.exists(directory):
@@ -116,7 +118,7 @@ while True:
 		"""
 		if (connection != True):
 			print "Establish connection before using this command."
-		elif (len(command) > 2):
+		elif (len(command) != 2):
 			print "Wrong command: Try again."
 		fileToSend = command[1]
 		if not os.path.isfile(fileToSend):
@@ -132,7 +134,7 @@ while True:
 
 			# Get file size and count number of data to send
 			fileSize = os.path.getsize(fileToSend)
-			numOfChunks = int(ceil(fileSize / DATA_CHUNK_SIZE))
+			numOfChunks = int(math.ceil(fileSize / float(DATA_CHUNK_SIZE)))
 			# Send number of chunks first
 			sendFlag = SendData(sock, str(numOfChunks))
 			if (sendFlag != 0):
@@ -140,7 +142,7 @@ while True:
 					"Program failed to send data properly")
 			# Split file and send data
 			with open(fileToSend, "rb") as f:
-				for i in range(numOfChunks):
+				for i in range(0, numOfChunks):
 					dataChunk = f.read(DATA_CHUNK_SIZE)
 					if dataChunk:
 						sendFlag = SendData(sock, dataChunk)
@@ -157,7 +159,7 @@ while True:
 		""" Terminates gracefully from the FxA-server """
 		if (connection != True):
 			print "Establish connection before using this command."
-		elif (len(command) > 1):
+		elif (len(command) != 1):
 			print "Wrong command: Try again."
 		sock.close() # close connection with server
 		connection = False

@@ -69,7 +69,7 @@ class Socket:
 			raise Error("Socket is not bound.")
 		while waitingTime > 0:
 			try:
-				data, address = self.recvfrom(self.recvWindow)
+				data, address = self.recvfrom(self.recvWindow, blocking=True)
 				packet = self.constructPacket(data, checkSeq=False)
 			except socket.timeout:
 				waitingTime -= 1
@@ -98,7 +98,7 @@ class Socket:
 		returnedPacket = self.send("@SYNACK", sendFlagOnly=True)
 		self.ackNum.set(returnedPacket.header.fields["seqNum"])
 		self.status = ConnectionStatus.ESTABLISHED
-		# print "Connection established with client: " + str(self.destAddr)
+		print "Connection established with client: " + str(self.destAddr)
 
 	def sendto(self, packet, address):
 		""" Write packet data and send to address """
@@ -131,7 +131,7 @@ class Socket:
 				resendLimit = self._RESEND_LIMIT
 				while resendLimit:
 					self.sendto(packet, self.destAddr)
-					# print "send(@SYN): signal sent from ", self.srcAddr, "to", self.destAddr # DEBUG
+					print "send(@SYN): signal sent from ", self.srcAddr, "to", self.destAddr # DEBUG
 					try:
 						data, address = self.recvfrom(self.recvWindow)
 						packet = self.constructPacket(data=data, address=address, checkSeq=False)
@@ -143,6 +143,7 @@ class Socket:
 							continue
 					else:
 						if packet.checkFlags(("SYN", "ACK"), exclusive=True):
+							print "socket.send(): SYNACK received after sending SYN" # DEBUG
 							break
 				if resendLimit <= 0:
 					raise Error("connection_timeout")
@@ -161,7 +162,7 @@ class Socket:
 				resendLimit = self._RESEND_LIMIT
 				while resendLimit:
 					self.sendto(packet, self.destAddr)
-					# print "send(@SYNACK): signal sent from ", self.srcAddr, "to", self.destAddr # DEBUG
+					print "send(@SYNACK): signal sent from ", self.srcAddr, "to", self.destAddr # DEBUG
 					try:
 						data, address = self.recvfrom(self.recvWindow)
 						packet = self.constructPacket(data=data, address=address, checkSeq=False)
@@ -236,7 +237,7 @@ class Socket:
 				Split data into chunks and put them into dataQ
 				when data is bigger than supported dataLength.
 				"""
-				if i + dataLength > len(message):
+				if i + dataLength >= len(message) - 1:
 					dataQ.append(message[i:])
 					# print "socket.send(): splitted data size is -> " + str(len(message[i:])) # DEBUG
 				else: 
@@ -318,10 +319,14 @@ class Socket:
 						if sentQ:
 							sentQ.popleft()
 
-	def recvfrom(self, recvWindow, flags=None):
+	def recvfrom(self, recvWindow, flags=None, blocking=False):
 		while True:
 			try:
+				if blocking:
+					self.timeout = self._socket.settimeout(None)
 				data, address = self._socket.recvfrom(self.recvWindow)
+				if blocking:
+					self.timeout = self._socket.settimeout(self._TIMEOUT)
 				break
 			except socket.error as e:
 				if e.errno == 35:
@@ -348,12 +353,8 @@ class Socket:
 		waitLimit = self._RESEND_LIMIT
 		while waitLimit:
 			try:
-				if blocking:
-					self.timeout = self._socket.settimeout(None)
-				data, address = self.recvfrom(self.recvWindow)
-				packet = self.constructPacket(data, checkSeq=False)				
-				if blocking:
-					self.timeout = self._socket.settimeout(self._TIMEOUT)
+				data, address = self.recvfrom(self.recvWindow, blocking=blocking)
+				packet = self.constructPacket(data, checkSeq=False)
 			except socket.timeout:
 				print "socket.recv(): timeout. Trying again..." # DEBUG
 				waitLimit -= 1

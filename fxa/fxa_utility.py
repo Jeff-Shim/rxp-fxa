@@ -65,8 +65,7 @@ def HandleFxAClient(sock):
 	"""
 
 	
-	# first recieved data would be number of data chunks to receive
-	# receive as string and convert to integer
+	# first recieved data would be request from client
 	recvFlag, recvData = ReceiveData(sock, blocking=True)
 	if (recvFlag != True):
 		DieWithUserMessage("ReceiveData()", \
@@ -84,7 +83,9 @@ def HandleFxAClient(sock):
 			print "Sending " + fileToSend + "..."
 			# Get file size and count number of data to send
 			fileSize = os.path.getsize(fileToSend)
-			numOfChunks = int(ceil(fileSize / DATA_CHUNK_SIZE))
+			# next recieved data would be number of data chunks to receive
+			# receive as string and convert to integer
+			numOfChunks = int(ceil(fileSize / float(DATA_CHUNK_SIZE)))
 			# Send number of chunks first
 			sendFlag = SendData(sock, str(numOfChunks))
 			if (sendFlag != 0):
