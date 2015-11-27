@@ -69,7 +69,7 @@ class Socket:
 			raise Error("Socket is not bound.")
 		while waitingTime > 0:
 			try:
-				data, address = self.recvfrom(self.recvWindow)
+				data, address = self.recvfrom(self.recvWindow, blocking=True)
 				packet = self.constructPacket(data, checkSeq=False)
 			except socket.timeout:
 				waitingTime -= 1
@@ -81,7 +81,7 @@ class Socket:
 			else:
 				if packet.checkFlags(("SYN",), exclusive=True):
 					break
-				else: waitLimit -= 1
+				else: waitingTime -= 1
 		if waitingTime == 0:
 			raise Error("connection_timeout")
 		ack = packet.header.fields["seqNum"] + 1
@@ -133,7 +133,11 @@ class Socket:
 					print "send(@SYN): signal sent from ", self.srcAddr, "to", self.destAddr # DEBUG
 					try:
 						data, address = self.recvfrom(self.recvWindow)
-						packet = self.constructPacket(data=data, address=address, checkSeq=False)
+						recvPacket = self.constructPacket(data=data, address=address, checkSeq=False)
+						if data:
+							print "Received Data from", address
+							print "Received Packet:", recvPacket.header.fields
+						else: print "send(@SYN):DID NOT RECEIVE DATA"
 					except socket.timeout:
 						resendLimit -= 1
 						continue
@@ -141,13 +145,13 @@ class Socket:
 						if (err.message == "invalid_checksum"):
 							continue
 					else:
-						if packet.checkFlags(("SYN", "ACK"), exclusive=True):
+						if recvPacket.checkFlags(("SYN", "ACK"), exclusive=True):
 							print "send(@SYN): SYNACK received."
 							break
 						# else: resendLimit -= 1
 				if resendLimit <= 0:
 					raise Error("connection_timeout")
-				return packet
+				return recvPacket
 			elif message == "@SYNACK":
 				""" When specified message is SYNACK """
 				flags = FLAGS.toBinary(("SYN", "ACK"))
@@ -165,11 +169,11 @@ class Socket:
 					print "send(@SYNACK): signal sent from ", self.srcAddr, "to", self.destAddr # DEBUG
 					try:
 						data, address = self.recvfrom(self.recvWindow)
-						packet = self.constructPacket(data=data, address=address, checkSeq=False)
+						recvPacket = self.constructPacket(data=data, address=address, checkSeq=False)
 						if data:
 							print "Received Data from", address
 						else: print "send(@SYNACK):DID NOT RECEIVE ANY DATA"
-						print "Received Packet:", packet.header.fields
+						print "Received Packet:", recvPacket.header.fields
 					except socket.timeout:
 						resendLimit -= 1
 						continue
@@ -177,22 +181,22 @@ class Socket:
 						if err.message == "invalid_checksum":
 							continue
 					else:
-						if packet.checkFlags(("SYN",), exclusive=True):
+						if recvPacket.checkFlags(("SYN",), exclusive=True):
 							print "send(@SYNACK): SYN received."
 							resendLimit = self._RESEND_LIMIT
-						# else: 
-						# 	print "\nsend(@SYNACK): breaking out of sending.\n"
-						# 	break
-						elif packet.checkFlags(("ACK",), exclusive=True):
-							print "send(@SYNACK): ACK received."
+						else: 
+							print "send(@SYNACK): breaking out of sending."
 							break
+						# elif recvPacket.checkFlags(("ACK",), exclusive=True):
+						# 	print "send(@SYNACK): ACK received."
+						# 	break
 						# elif packet.checkFlags(("NM",), exclusive=False):
 						# 	break
 						# elif packet.checkFlags(("ACK", "NM"), exclusive=False):
 						# 	break
 				if resendLimit <= 0:
 					raise Error("connection_timeout")
-				return packet
+				return recvPacket
 			elif message == "@ACK":
 				""" When specified message is ACK """
 				flags = FLAGS.toBinary(("ACK",))
@@ -220,7 +224,7 @@ class Socket:
 					self.sendto(packet, self.destAddr)
 					try:
 						data, address = self.recvfrom(self.recvWindow)
-						packet = self.constructPacket(data=data, address=address, checkSeq=False)
+						recvPacket = self.constructPacket(data=data, address=address, checkSeq=False)
 					except socket.timeout:
 						resendLimit -= 1
 						continue
@@ -228,11 +232,11 @@ class Socket:
 						if err.message == "invalid_checksum":
 							continue
 					else:
-						if packet.checkFlags(("ACK",), exclusive=True):
+						if recvPacket.checkFlags(("ACK",), exclusive=True):
 							self.status = ConnectionStatus.NONE
 							self._socket.close()
 							break
-						else: waitLimit -= 1
+						else: resendLimit -= 1
 		else:
 			""" 
 			When connection is existing, send given data to 
@@ -249,7 +253,7 @@ class Socket:
 				Split data into chunks and put them into dataQ
 				when data is bigger than supported dataLength.
 				"""
-				if i + dataLength > len(message):
+				if i + dataLength >= len(message) - 1:
 					dataQ.append(message[i:])
 					# print "socket.send(): splitted data size is -> " + str(len(message[i:])) # DEBUG
 				else: 
@@ -331,10 +335,14 @@ class Socket:
 						if sentQ:
 							sentQ.popleft()
 
-	def recvfrom(self, recvWindow, flags=None):
+	def recvfrom(self, recvWindow, flags=None, blocking=False):
 		while True:
 			try:
+				if blocking:
+					self.timeout = self._socket.settimeout(None)
 				data, address = self._socket.recvfrom(self.recvWindow)
+				if blocking:
+					self.timeout = self._socket.settimeout(self._TIMEOUT)
 				break
 			except socket.error as e:
 				if e.errno == 35:
@@ -361,14 +369,10 @@ class Socket:
 		waitLimit = self._RESEND_LIMIT
 		while waitLimit:
 			try:
-				if blocking:
-					self.timeout = self._socket.settimeout(None)
-				data, address = self.recvfrom(self.recvWindow)
-				packet = self.constructPacket(data, checkSeq=False)				
-				if blocking:
-					self.timeout = self._socket.settimeout(self._TIMEOUT)
+				data, address = self.recvfrom(self.recvWindow, blocking=blocking)
+				packet = self.constructPacket(data, checkSeq=False)
 			except socket.timeout:
-				print "socket.recv(): timeout. Trying again..." # DEBUG
+				# print "socket.recv(): timeout. Trying again..." # DEBUG
 				waitLimit -= 1
 				continue
 			except Error as err:

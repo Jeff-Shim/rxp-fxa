@@ -10,13 +10,14 @@ FxA Utility
 	This utility functions work in both FxA server and client.
 """
 
-import sys
+import sys, readline
 import os.path
 # sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from math import ceil
 
 DATA_CHUNK_SIZE = 128000 # 128 kB
+
 
 def DieWithUserMessage(msg, detail):
 	""" Die with user message """
@@ -65,8 +66,7 @@ def HandleFxAClient(sock):
 	"""
 
 	
-	# first recieved data would be number of data chunks to receive
-	# receive as string and convert to integer
+	# first recieved data would be request from client
 	recvFlag, recvData = ReceiveData(sock, blocking=True)
 	if (recvFlag != True):
 		DieWithUserMessage("ReceiveData()", \
@@ -84,6 +84,8 @@ def HandleFxAClient(sock):
 			print "Sending " + fileToSend + "..."
 			# Get file size and count number of data to send
 			fileSize = os.path.getsize(fileToSend)
+			# next recieved data would be number of data chunks to receive
+			# receive as string and convert to integer
 			numOfChunks = int(ceil(fileSize / float(DATA_CHUNK_SIZE)))
 			# Send number of chunks first
 			sendFlag = SendData(sock, str(numOfChunks))
@@ -119,7 +121,7 @@ def HandleFxAClient(sock):
 				"unknown error")
 		numOfChunks = int(recvData)
 
-		directory = "server-recieved"
+		directory = "server-received"
 		if not os.path.exists(directory):
 			os.makedirs(directory)
 

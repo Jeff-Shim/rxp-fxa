@@ -29,21 +29,33 @@ def clearCurrentReadline():
 	sys.stdout.write('\x1b[1A\x1b[2K'*(text_len/cols))  # Move cursor up and clear line
 	sys.stdout.write('\x1b[0G')						 # Move to start of line
 
+def printCommandIndicater():
+	""" Print user command again """ 
+	last_line = readline.get_line_buffer()
+	if last_line.endswith('\n'):
+		sys.stdout.write('server command > ')
+	else:
+		sys.stdout.write('server command > ' + readline.get_line_buffer())
+	sys.stdout.flush()
 
 class ClientHandlerThread(threading.Thread):
-	def __init__(self, target, *args):
+	def __init__(self, target, parentThread, *args):
 		self._stopevent = threading.Event()
 		self._target = target
 		self._args = args
+		self._parent = parentThread
 		threading.Thread.__init__(self)
  
 	def run(self):
 		self._target(*self._args)
 
 	def join(self, timeout=None):
-		""" Stop the thread and wait for it to end. """
-		self._stopevent.set()
-		threading.Thread.join(self, timeout)
+		try:
+			""" Stop the thread and wait for it to end. """
+			self._stopevent.set()
+			threading.Thread.join(self, timeout)
+		except (KeyboardInterrupt, SystemExit):
+			raise
 
 
 class ServerThread(threading.Thread):
@@ -70,7 +82,10 @@ class ServerThread(threading.Thread):
 		sock.bind(('', self._portNumber))
 		# if (sock.bind(('', self._portNumber)) < 0):
 		# 	DieWithUserMessage("bind()", "failed to bind to given port number")
-
+		
+		""" Clear terminal line """
+		clearCurrentReadline()
+		
 		""" Mark the socket so it will listen for incoming connections """
 		sock.listen()
 		# if (sock.listen(self._MAXPENDING) < 0):
@@ -78,6 +93,9 @@ class ServerThread(threading.Thread):
 		# 		"failed to set socket to listen incoming connections")
 		""" Wait for a client to connect """
 		sock.accept()
+
+		""" Print user command again """ 
+		printCommandIndicater()
 
 		""" Main Server Loop """
 		while not self._stopevent.isSet():
@@ -90,25 +108,24 @@ class ServerThread(threading.Thread):
 			clearCurrentReadline()
 
 			""" Handle accepted client """	
-			clientThread = ClientHandlerThread(HandleFxAClient, sock)
+			clientThread = ClientHandlerThread(HandleFxAClient, self, sock)
 			clientThread.start()
 			clientThread.join()
 
 			""" Print user command again """ 
-			last_line = readline.get_line_buffer()
-			if last_line.endswith('\n'):
-				sys.stdout.write('server command > ')
-			else:
-				sys.stdout.write('server command > ' + readline.get_line_buffer())
-			sys.stdout.flush()
+			printCommandIndicater()
 
 		""" When server is terminated by user command """
 		print "%s ends" % (self.getName(),)
 
 	def join(self, timeout=None):
-		""" Stop the thread and wait for it to end. """
-		self._stopevent.set()
-		threading.Thread.join(self, timeout)
+		try:
+			""" Stop the thread and wait for it to end. """
+			sys.exit()
+			self._stopevent.set()
+			threading.Thread.join(self, timeout)
+		except (KeyboardInterrupt, SystemExit):
+			raise
 
 	def setConnected(self, value):
 		self._connected = value
@@ -136,6 +153,9 @@ if __name__ == '__main__':
 	# connection = False # connection is yet established
 	while True:
 		command = raw_input("server command > ")
+
+		print "fxa_server: Command received -> " + str(command) # DEBUG
+
 		command = command.split(None) # split given string with whitespace
 
 		if (len(command) < 1):
@@ -147,5 +167,7 @@ if __name__ == '__main__':
 			# 	print "Establish connection before using this command."
 			if (len(command) > 1):
 				print "Wrong command: Try again."
-			serverthread.join() # terminate server thread and close server
-			sys.exit()
+			else: 
+				serverthread.join() # terminate server thread and close server
+				print "fxa_server exits..." # DEBUG
+				sys.exit()
