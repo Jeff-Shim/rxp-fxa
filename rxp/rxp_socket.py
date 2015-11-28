@@ -61,12 +61,8 @@ class Socket:
 		self.destAddr = destAddress
 		self.seqNum.set()
 		returnedPacket = self.send("@SYN", sendFlagOnly=True)
-<<<<<<< HEAD
 		self.ackNum.set(returnedPacket.header.fields["seqNum"] + 1)
 		# print "socket.connect(): acknum set as: " + str(self.ackNum.num) # DEBUG
-=======
-		self.ackNum.set(returnedPacket.header.fields["seqNum"])
->>>>>>> origin/master
 		self.send("@ACK", sendFlagOnly=True)
 		self.status = ConnectionStatus.ESTABLISHED
 		print "socket.connect():\tseqNum:",self.seqNum.num,"\tackNum:",self.ackNum.num
@@ -188,16 +184,11 @@ class Socket:
 					else:
 						if recvPacket.checkFlags(("SYN",), exclusive=True):
 							resendLimit = self._RESEND_LIMIT
-<<<<<<< HEAD
 						else: # recvPacket.checkFlags(("ACK",), exclusive=True):
 							if not recvPacket.checkFlags(("ACK",), exclusive=True):
 								# print "unperfectHandshake!!" # DEBUG
 								self.unperfectHandshake = True
 								self.unperfectHandshakePacket = recvPacket
-=======
-						elif recvPacket.checkFlags(("ACK",), exclusive=True):
-							print "send(@SYNACK): ACK received."
->>>>>>> origin/master
 							break
 						elif not recvPacket.checkFlags(("ACK",), exclusive=True):
 							print "unperfectHandshake!!" # DEBUG
@@ -231,11 +222,7 @@ class Socket:
 					flags = flags)
 				packet = rxp_packet.Packet(header)
 				self.sendto(packet, self.destAddr)
-<<<<<<< HEAD
 				# print "send(@ACK): sent ACK number ->", self.ackNum.num # DEBUG
-=======
-				print "send(@ACK):\tseqNum:",packet.header.fields["seqNum"],"\tackNum:",packet.header.fields["ackNum"] # DEBUG
->>>>>>> origin/master
 			elif message == "@FIN":
 				flags = FLAGS.toBinary(("FIN",))
 				header = rxp_header.Header(
@@ -272,11 +259,6 @@ class Socket:
 			dataQ = deque()
 			packetQ = deque()
 			sentQ = deque()
-<<<<<<< HEAD
-
-=======
-			prevSeqNum = int(self.seqNum.num)
->>>>>>> origin/master
 			headerSize = rxp_header.Header().headerLength
 			dataLength = self.recvWindow - headerSize
 			for i in range(0, len(message), dataLength):
@@ -360,7 +342,6 @@ class Socket:
 					not-sent situations.
 					"""
 					sentQ.append(packet)
-<<<<<<< HEAD
 
 				sentWindow = self._SEND_WINDOW - sendWindow
 				recvPacketQ = []
@@ -436,51 +417,6 @@ class Socket:
 
 			if numResends <= 0:
 					raise Error("socket.send(): resend_limit reached")
-=======
-				try: 
-					data, address = self.recvfrom(self.recvWindow)
-					recvPacket = self.constructPacket(data, checkSeq=False, checkAck=prevSeqNum)
-				except socket.timeout:
-					sendWindow = self._SEND_WINDOW
-					numResends -= 1
-					sentQ.reverse()
-					packetQ.extendleft(sentQ)
-					sentQ.clear()
-				except Error as err:
-					if err.message == "invalid_checksum":
-						continue
-				else:
-					sendWindow += 1
-					if isinstance(recvPacket, int):
-						# print "socket.send(): received answer is integer." # DEBUG
-					# 	while packet < 0:
-					# 		packetQ.appendleft(sentQ.pop())
-					# 		packet += 1
-					# elif packet.checkFlags(("SYN","ACK"), exclusive=True):
-					# 	# print "socket.send(): received SYN, ACK in send()" # DEBUG
-					# 	self.send("@ACK", sendFlagOnly=True)
-					# 	numResends = self._RESEND_LIMIT
-					# 	sentQ.reverse()
-					# 	packetQ.extendleft(sentQ)
-					# 	sentQ.clear()
-					# elif packet.checkFlags(("ACK",), exclusive=True):
-						while recvPacket < 0:
-							packetQ.appendleft(sentQ.pop())
-							recvPacket += 1
-					# elif recvPacket.checkFlags(("SYN","ACK"), exclusive=True):
-					# 	# print "socket.send(): received SYN, ACK in send()" # DEBUG
-					# 	self.send("@ACK", sendFlagOnly=True)
-					# 	numResends = self._RESEND_LIMIT
-					# 	sentQ.reverse()
-					# 	packetQ.extendleft(sentQ)
-					# 	sentQ.clear()
-					elif recvPacket.checkFlags(("ACK",), exclusive=True):
-						# print "socket.send(): received ACK, confirmed data transfer" # DEBUG
-						self.seqNum.set(recvPacket.header.fields["ackNum"])
-						numResends = self._RESEND_LIMIT
-						if sentQ:
-							sentQ.popleft()
->>>>>>> origin/master
 
 	def recvfrom(self, recvWindow, flags=None, blocking=False):
 		while True:
@@ -546,12 +482,7 @@ class Socket:
 					self.send("@ACK", sendFlagOnly=True)
 					self._socket.close()
 					break
-<<<<<<< HEAD
 				if recvPacket.header.fields["seqNum"] == self.ackNum.num:
-=======
-				if recvPacket.header.fields["seqNum"] >= self.ackNum.num:
-					# self.ackNum.set(recvPacket.header.fields["seqNum"] + 1)
->>>>>>> origin/master
 					self.ackNum.nextSeq()
 					if recvPacket.checkFlags(("NM",), exclusive=False): 
 						nmArrived = True
@@ -601,7 +532,6 @@ class Socket:
 				raise Error("sequence_mismatch")
 			elif not isACK:
 				self.ackNum.nextSeq()
-<<<<<<< HEAD
 		# if checkAck:
 		# 	flags = rxp_header.Flags.unBinary(packet.header.fields["flags"])
 		# 	""" 
@@ -613,19 +543,6 @@ class Socket:
 		# 	ackCheck = (int(packetAckNum) - checkAck - 1)
 		# 	if packetAckNum and ackCheck:
 		# 		return ackCheck
-=======
-		if checkAck:
-			flags = rxp_header.Flags.unBinary(packet.header.fields["flags"])
-			""" 
-			Check ACK number is correct. checkAck would be given as 
-			sequence number of previous packet. So ACK should be
-			ACK == Previous_Sequence_Number + 1 
-			"""
-			packetAckNum = packet.header.fields["ackNum"]
-			ackCheck = (int(packetAckNum) - checkAck - 1)
-			if packetAckNum and ackCheck:
-				return checkAck
->>>>>>> origin/master
 		return packet
 
 class SequenceNumber:
