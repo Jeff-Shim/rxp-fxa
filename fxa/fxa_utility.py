@@ -93,8 +93,12 @@ def HandleFxAClient(sock):
 	# first recieved data would be request from client
 	recvFlag, recvData = ReceiveData(sock, blocking=True)
 	if (recvFlag != True):
-		dieMsg = "Connection " + str(sock.destAddr) + " Terminated."
-		DieWithUserMessage("ReceiveData()", dieMsg)
+		""" Clear terminal line """
+		clearCurrentReadline()
+		print "Disconnect: Connection " + str(sock.destAddr) + " Terminated."
+		""" Print user command again """ 
+		printCommandIndicater()
+		sys.exit()
 	request = str(recvData)
 	command = request.split(':')
 	if (len(command) != 2):
