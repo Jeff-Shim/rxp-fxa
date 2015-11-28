@@ -9,6 +9,7 @@ Due Nov. 25, 2015
 
 ===============================================================
 	Files Submitted (Names & Description)
+- README.txt : This README file
 - rxp/rxp_socket.py : Contains all logic for creating and manipulating RxP Socket
 - rxp/rxp_header.py : Header object for a single packet. Prepended to packet object
 - rxp/rxp_packet.py : A single packet object
