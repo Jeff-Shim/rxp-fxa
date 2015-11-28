@@ -38,16 +38,17 @@ def ReceivePacket():
             data=packet[0]
             if not data: break
 
-            print "Packet received from:", packet[1]
+            # print "Packet received from:", packet[1]
 
             if (randint(1,100) < corruptProb): 
-                print "Corrupting this packet"
+                # print "Corrupting this packet"
                 packet=(corrupt(packet[0]),packet[1])  # corrupt
             elif (randint(1,100) < dupProb): 
-                print "Duplicating this packet"
+                # print "Duplicating this packet"
                 queue.put(packet) # duplicate by adding twice to queue
             if (randint(1,100) < dropProb):
-                print "Dropping this packet"
+                # print "Dropping this packet"
+                pass
             else: 
                 queue.put(packet)
         except socket.error,msg:
@@ -70,12 +71,13 @@ def ProcessQueue():
         while not queue.empty():
             packet=queue.get()
             if (randint(1,100) < reorderProb): # put it back in the queue to reorder
-	        print "Reordering this packet"
+	        # print "Reordering this packet"
                 queue.put(packet)
                 break
             PSINT=randint(0,delay)/1000.0
             if (PSINT > 0) :
-               print "Delaying this packet for:",PSINT
+               # print "Delaying this packet for:",PSINT
+               pass
             time.sleep(PSINT) # wait for a random delay time
             send(packet)
 
@@ -86,9 +88,9 @@ def send(packet):
     sock.sendto(packet[0],(ip,outport))
 
     # hexdump the data so that we can see what changed
-    print "packet sent to :", packet[1]
+    # print "packet sent to :", packet[1]
     hexvalue = binascii.hexlify(packet[0]) #.decode()
-    print ['0x'+hexvalue[i:i+2] for i in range(0, len(hexvalue),2)]
+    # print ['0x'+hexvalue[i:i+2] for i in range(0, len(hexvalue),2)]
 
 
 def check_prob(option,opt,x):
