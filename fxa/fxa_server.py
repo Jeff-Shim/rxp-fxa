@@ -16,6 +16,11 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from rxp.rxp_socket import * # Import RxP Protocol
 from fxa_utility import *
 
+def commandHelp():
+	print '\nfxa-sever Commands\n\n' \
+			+ 'window W - window-size at the FxA-Server\n' \
+			+ 'terminate - Shut-down FxA-Server gracefully. \n' 
+
 class ClientHandlerThread(threading.Thread):
 	def __init__(self, target, parentThread, *args):
 		self._stopevent = threading.Event()
@@ -135,6 +140,7 @@ def runServer():
 			command = command.split(None) # split given string with whitespace
 
 			if (len(command) < 1):
+				commandHelp()
 				continue
 
 			if (command[0].lower() == "terminate"):
@@ -142,7 +148,7 @@ def runServer():
 				# if (connection != True):
 				# 	print "Establish connection before using this command."
 				if (len(command) > 1):
-					print "Wrong command: Try again."
+					commandHelp()
 				else: 
 					serverthread.join() # terminate server thread and close server
 					print "fxa_server exits..." # DEBUG
@@ -150,10 +156,14 @@ def runServer():
 
 			elif (command[0].lower() == "window"):
 				if (len(command) != 2):
-					print "Wrong command: Try again."
+					commandHelp()
 				else:
 					orgWindowSize = serverthread.sock.getWindowSize()
 					newWindowSize = int(command[1])
 					if serverthread.sock.setWindowSize(newWindowSize):
 						print "Window size changed from", orgWindowSize, "to ->", newWindowSize
+
+			else:
+				commandHelp()
+
 runServer()

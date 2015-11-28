@@ -19,6 +19,14 @@ from math import ceil
 
 DATA_CHUNK_SIZE = 128000 # 128 kB
 
+def commandHelp():
+	print '\nfxa-client Commands\n\n' \
+			+ 'connect - The FxA-client connects to the FxA-server at the same IP host. \n' \
+			+ 'get F - The FxA-client downloads file F from the server (if F exists in the same directory with the FxA-server program). Saves to directory \'client-received\'\n' \
+			+ 'post F - The FxA-client uploads file F to the server (if F exists in the same directory with the FxA-client program).\n' \
+			+ 'window W - window-size at the FxA-Client\n' \
+			+ 'disconnect - The FxA-client terminates gracefully from the FxA-server.\n'
+
 # Check number of arguments
 if len(sys.argv) != 4:
 	DieWithUserMessage('Command-line Error', 'fxa-client X A P\n\n' \
@@ -48,13 +56,13 @@ while True:
 	command = command.split(None) # split given string with whitespaces
 
 	if (len(command) < 1):
-		print "Wrong command: Try again."
+		commandHelp()
 		continue
 
 	if (command[0].lower() == "connect"):
 		""" Establish connection with server (netEmu) """
 		if (len(command) != 1):
-			print "Wrong command: Try again."
+			commandHelp()
 		else:
 			sock.connect(destAddress)
 			if(sock.status == ConnectionStatus.ESTABLISHED):
@@ -74,7 +82,7 @@ while True:
 		if (connection != True):
 			print "Establish connection before using this command."
 		elif (len(command) != 2):
-			print "Wrong command: Try again."
+			commandHelp()
 		else:
 			fileToGet = command[1]	
 
@@ -120,7 +128,7 @@ while True:
 		if (connection != True):
 			print "Establish connection before using this command."
 		elif (len(command) != 2):
-			print "Wrong command: Try again."
+			commandHelp()
 		fileToSend = command[1]
 		if not os.path.isfile(fileToSend):
 			print "Such file doesn't exist"
@@ -158,7 +166,7 @@ while True:
 
 	elif (command[0].lower() == "window"):
 		if (len(command) != 2):
-			print "Wrong command: Try again."
+			commandHelp()
 		else:
 			orgWindowSize = sock.getWindowSize()
 			newWindowSize = int(command[1])
@@ -170,8 +178,11 @@ while True:
 		if (connection != True):
 			print "Establish connection before using this command."
 		elif (len(command) != 1):
-			print "Wrong command: Try again."
+			commandHelp()
 		sock.close() # close connection with server
 		connection = False
 		print "Connection successfully disconnected with", destAddress
 		sys.exit()
+
+	else:
+		commandHelp()
