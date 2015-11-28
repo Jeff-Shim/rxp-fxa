@@ -15,6 +15,8 @@ Due Nov. 25, 2015
 - fxa/fxa_utility.py : FxA Server uses this utility to handle client commands
 - fxa/fxa_server.py : Uses rxp_socket to run the FxA server
 - fxa/fxa_client.py : Uses rxp_socket to run the FxA client. Handles user input commands.
+- rxp/__init__.py : Supports import of RxP from FxA
+- fxa/test.jpg : Image file for test purpose
 
 ===============================================================
 	Instructions for Compiling & Running Application
@@ -24,6 +26,7 @@ Due Nov. 25, 2015
 	A: the IP address of NetEmu
 	P: the UDP port number of NetEmu 
 	COMMANDS:
+		window W : Set window size at FxA-server
 		terminate : shut-down FxA Server
 3. Start the client: "$ python fxa/fxa_client.py X A P"
 	X: the port number at which the FxA-client’s UDP socket should bind to (even number). Should be equal to the server’s port number minus 1. 
@@ -33,6 +36,7 @@ Due Nov. 25, 2015
 		connect : FxA client connects with FxA server
 		get F : FxA client downloads file F from server
 		post F : FxA client uploads file F to server
+		window W : Set window size at FxA-client
 		disconnect : FxA client closes connection with FxA server (connection must already be established)
 
 ===============================================================
@@ -97,6 +101,6 @@ Bi-Directional Data Transfers
 ===============================================================
 	Known Bugs or Limitations
 - During RxP handshake, when there are errors, sometimes the ACK doesn't go through. If the ACK is not successfully sent through, the server will continue to repeatedly send SYNACK until either an ACK or a new message comes through.
-- At the end of a message, if the remaining data does not fill the window, the final ACK may not send. The server will just continue to listen for the ACK and timeout. This will not cause any errors with the message.
-- Performance of error handling decreases with higher percentage of possible errors passed into NetEmu.
+- At the end of a message, when there are errors, sometimes the final ACK doesn't go through. The server will just continue to listen for the ACK and timeout. This will not cause any errors with the message.
+- Performance of error handling decreases with higher percentage of possible errors passed into NetEmu. In other words, if error rates set in NetEmu is too high, limit of resending will be reached and raise error. This is obvious and practical.
 - FxA server isn't too 'graceful' in terminating.
