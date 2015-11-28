@@ -53,7 +53,7 @@ while True:
 
 	if (command[0].lower() == "connect"):
 		""" Establish connection with server (netEmu) """
-		if (len(command) > 1):
+		if (len(command) != 1):
 			print "Wrong command: Try again."
 		else:
 			sock.connect(destAddress)
@@ -93,7 +93,7 @@ while True:
 				DieWithUserMessage("ReceiveData()", \
 					"unknown error")
 			numOfChunks = int(recvData)
-			print "fxa_client: GET -> will receive " + str(numOfChunks) + " of data chunks" # DEBUG 
+			# print "fxa_client: GET -> will receive " + str(numOfChunks) + " of data chunks" # DEBUG 
 
 			directory = "client-received"
 			if not os.path.exists(directory):
@@ -135,7 +135,7 @@ while True:
 
 			# Get file size and count number of data to send
 			fileSize = os.path.getsize(fileToSend)
-			numOfChunks = int(math.ceil(fileSize / float(DATA_CHUNK_SIZE)))
+			numOfChunks = int(ceil(fileSize / float(DATA_CHUNK_SIZE)))
 			# Send number of chunks first
 			sendFlag = SendData(sock, str(numOfChunks))
 			if (sendFlag != 0):
@@ -155,6 +155,15 @@ while True:
 							"Expected number of data chunks is different with actual data")
 				f.close()
 				print "Sent " + fileToSend + " successfully."
+
+	elif (command[0].lower() == "window"):
+		if (len(command) != 2):
+			print "Wrong command: Try again."
+		else:
+			orgWindowSize = sock.getWindowSize()
+			newWindowSize = int(command[1])
+			if sock.setWindowSize(newWindowSize):
+				print "Window size changed from", orgWindowSize, "to ->", newWindowSize
 
 	elif (command[0].lower() == "disconnect"):
 		""" Terminates gracefully from the FxA-server """

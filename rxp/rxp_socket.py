@@ -24,7 +24,7 @@ class Socket:
 
 	_TIMEOUT = 0.1 # 1 seconds
 	_RESEND_LIMIT = 500
-	_SEND_WINDOW = 3
+	_DEFAULT_SEND_WINDOW = 3
 	_ACCEPTS_ASCII = False
 
 	def __init__(self):
@@ -41,7 +41,15 @@ class Socket:
 		self.recvWindow = rxp_packet.Packet().maxWindowSize
 		self.unperfectHandshake = False
 		self.unperfectHandshakePacket = rxp_packet.Packet()
+		self.sendWindowSize = self._DEFAULT_SEND_WINDOW
 
+
+	def setWindowSize(self, windowSize):
+		self.sendWindowSize = windowSize
+		return True
+
+	def getWindowSize(self):
+		return self.sendWindowSize
 
 	def bind(self, address=None):
 		""" Assigns the address given as address to the socket """
@@ -80,7 +88,7 @@ class Socket:
 				continue
 			except Error as err:
 				if err.message == "invalid_checksum":
-					print "socket.listen(): invalid checksum. Trying again..."
+					# print "socket.listen(): invalid checksum. Trying again..." # DEBUG
 					continue
 			else:
 				if recvPacket.checkFlags(("SYN",), exclusive=True):
@@ -103,7 +111,8 @@ class Socket:
 		returnedPacket = self.send("@SYNACK", sendFlagOnly=True)
 		self.ackNum.set(returnedPacket.header.fields["seqNum"])
 		self.status = ConnectionStatus.ESTABLISHED
-		print "Connection established with client: " + str(self.destAddr)
+		# print "Connection established with client: " + str(self.destAddr) # DEBUG
+		return str(self.destAddr)
 
 	def sendto(self, packet, address):
 		""" Write packet data and send to address """
@@ -136,7 +145,7 @@ class Socket:
 				resendLimit = self._RESEND_LIMIT
 				while resendLimit:
 					self.sendto(packet, self.destAddr)
-					print "send(@SYN): signal sent from ", self.srcAddr, "to", self.destAddr # DEBUG
+					# print "send(@SYN): signal sent from ", self.srcAddr, "to", self.destAddr # DEBUG
 					try:
 						data, address = self.recvfrom(self.recvWindow)
 						recvPacket = self.constructPacket(data=data, address=address, checkSeq=False)
@@ -148,7 +157,7 @@ class Socket:
 							continue
 					else:
 						if recvPacket.checkFlags(("SYN", "ACK"), exclusive=True):
-							print "socket.send(): SYNACK received after sending SYN" # DEBUG
+							# print "socket.send(): SYNACK received after sending SYN" # DEBUG
 							break
 				if resendLimit <= 0:
 					raise Error("connection_timeout")
@@ -167,7 +176,7 @@ class Socket:
 				resendLimit = self._RESEND_LIMIT
 				while resendLimit:
 					self.sendto(packet, self.destAddr)
-					print "send(@SYNACK): signal sent from ", self.srcAddr, "to", self.destAddr # DEBUG
+					# print "send(@SYNACK): signal sent from ", self.srcAddr, "to", self.destAddr # DEBUG
 					try:
 						data, address = self.recvfrom(self.recvWindow)
 						recvPacket = self.constructPacket(data=data, address=address, checkSeq=False)
@@ -283,7 +292,7 @@ class Socket:
 
 			numResends = self._RESEND_LIMIT
 			while packetQ and numResends:
-				sendWindow = self._SEND_WINDOW
+				sendWindow = self.sendWindowSize
 				
 				readyToCheckACK = False
 				prevSeqNum = []
@@ -301,7 +310,7 @@ class Socket:
 					"""
 					sentQ.append(packet)
 
-				sentWindow = self._SEND_WINDOW - sendWindow
+				sentWindow = self.sendWindowSize - sendWindow
 				recvPacketQ = []
 				recvAckNum = []
 				for i in range(sentWindow):
@@ -309,7 +318,7 @@ class Socket:
 						data, address = self.recvfrom(self.recvWindow)
 						recvPacket = self.constructPacket(data, checkSeq=False)
 					except socket.timeout:
-						sendWindow = self._SEND_WINDOW
+						sendWindow = self.sendWindowSize
 						numResends -= 1
 						sentQ.reverse()
 						packetQ.extendleft(sentQ)
@@ -451,7 +460,7 @@ class Socket:
 					""" Append received data to message """
 					if nmArrived:
 						cnt += 1
-						print "message no. " + str(cnt) + " arrived"
+						# print "message no. " + str(cnt) + " arrived"
 						waitLimit = self._RESEND_LIMIT
 						message += recvPacket.data
 						self.send("@ACK", sendFlagOnly=True)

@@ -10,7 +10,8 @@ FxA Utility
 	This utility functions work in both FxA server and client.
 """
 
-import sys, readline
+import time,readline,thread,threading
+import sys,struct,fcntl,termios
 import os.path
 # sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
@@ -18,6 +19,26 @@ from math import ceil
 
 DATA_CHUNK_SIZE = 128000 # 128 kB
 
+def clearCurrentReadline():
+	# http://stackoverflow.com/questions/2082387/reading-input-from-raw-input-without-having-the-prompt-overwritten-by-other-th
+	# Next line said to be reasonably portable for various Unixes
+	(rows,cols) = struct.unpack('hh', fcntl.ioctl(sys.stdout, termios.TIOCGWINSZ,'1234'))
+
+	text_len = len(readline.get_line_buffer())+2
+
+	# ANSI escape sequences (All VT100 except ESC[0G)
+	sys.stdout.write('\x1b[2K')						 # Clear current line
+	sys.stdout.write('\x1b[1A\x1b[2K'*(text_len/cols))  # Move cursor up and clear line
+	sys.stdout.write('\x1b[0G')						 # Move to start of line
+
+def printCommandIndicater():
+	""" Print user command again """ 
+	last_line = readline.get_line_buffer()
+	if last_line.endswith('\n'):
+		sys.stdout.write('server command > ')
+	else:
+		sys.stdout.write('server command > ' + readline.get_line_buffer())
+	sys.stdout.flush()
 
 def DieWithUserMessage(msg, detail):
 	""" Die with user message """
@@ -38,7 +59,11 @@ def SendData(sock, dataToSend):
 		# 	DieWithUserMessage("send()", "sent unexpected number of bytes")
 		return 0
 	else:
+		""" Clear terminal line """
+		clearCurrentReadline()
 		print "SendData(): nothing to send"
+		""" Print user command again """ 
+		printCommandIndicater()
 		return 1
 
 def ReceiveData(sock, blocking=False):
@@ -78,8 +103,12 @@ def HandleFxAClient(sock):
 		# When client request is GET request
 		fileToSend = command[1]
 		if not os.path.isfile(fileToSend):
+			""" Clear terminal line """
+			clearCurrentReadline()
 			print "Such file '" + str(fileToSend) + "' doesn't exist"
 		else:
+			""" Clear terminal line """
+			clearCurrentReadline()
 			print "Sending " + fileToSend + "..."
 			# Get file size and count number of data to send
 			fileSize = os.path.getsize(fileToSend)
@@ -105,11 +134,15 @@ def HandleFxAClient(sock):
 						DieWithUserMessage("HandleFxAClient() for GET request", \
 							"Expected number of data chunks is different with actual data")
 				f.close()
+				""" Clear terminal line """
+				clearCurrentReadline()
 				print "Sent " + fileToSend + " successfully."
 	elif (command[0].lower() == "post"):
 		# When client request is POST request
 		fileToGet = command[1]
 
+		""" Clear terminal line """
+		clearCurrentReadline()
 		print "Receiving " + fileToGet + "..."
 
 		# first recieved data would be number of data chunks to receive
@@ -136,6 +169,8 @@ def HandleFxAClient(sock):
 				f.seek(0, 2) # go to eof: relative position 0 from eof(2)
 				f.write(recvData)
 			f.close()
+			""" Clear terminal line """
+			clearCurrentReadline()
 			print "Received " + fileToGet + " successfully."
 	else:
 		DieWithUserMessage("HandleFxAClient()", "unknown request")
